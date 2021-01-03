@@ -1,4 +1,5 @@
 #include "MathMLGenerator.h"
+#include "src/Lexer.h"
 
 #include <unordered_map>
 
@@ -16,7 +17,6 @@ public:
 
     virtual bool add(const Token& token) = 0;
     virtual std::string take() = 0;
-
 };
 
 const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilderFactory();
@@ -253,11 +253,22 @@ MathMLGenerator::~MathMLGenerator() = default;
 
 void MathMLGenerator::generate(const std::string& tex)
 {
+    Lexer lexer(tex);
+    generate(lexer);
+}
+
+void MathMLGenerator::generateFromIN()
+{
+    Lexer lexer;
+    generate(lexer);
+}
+
+void MathMLGenerator::generate(Lexer& lexer)
+{
     _out << R"(<?xml version="1.0"?>)" << std::endl;
     _out << R"(<math xmlns="http://www.w3.org/1998/Math/MathML">)" << std::endl;
     _out << R"(<mstyle displaystyle="true">)" << std::endl;
 
-    Lexer lexer(tex);
     RowBuilder builder;
     while(builder.add(lexer.next()));
 

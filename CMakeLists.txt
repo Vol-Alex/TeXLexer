@@ -19,4 +19,9 @@ SET_SOURCE_FILES_PROPERTIES(${CMAKE_BINARY_DIR}/src/LexerImpl.c GENERATED)
 
 add_library(TeXLexer ${SRC})
 
+add_executable(texToMML texToMML.cpp)
+target_link_libraries(texToMML LINK_PUBLIC
+    TeXLexer
+)
+
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/test")

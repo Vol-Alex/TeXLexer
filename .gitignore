@@ -33,4 +33,6 @@
 
 #MacOSX
 .DS_Store
+
 DummyTestSuite.cpp
+CMakeLists.txt.user

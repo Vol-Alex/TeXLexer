@@ -1,11 +1,11 @@
 #pragma once
 
-#include "src/Lexer.h"
-
 #include <ostream>
 
 namespace TXL
 {
+class Lexer;
+
 class MathMLGenerator final
 {
 public:
@@ -13,6 +13,10 @@ public:
     ~MathMLGenerator();
 
     void generate(const std::string& tex);
+    void generateFromIN();
+
+private:
+    void generate(Lexer& in);
 
 private:
     std::ostream& _out;

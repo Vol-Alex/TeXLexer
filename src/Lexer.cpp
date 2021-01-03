@@ -13,6 +13,8 @@ void freeBuffer(void* buffer);
 
 namespace TXL
 {
+Lexer::Lexer() = default;
+
 Lexer::Lexer(std::string_view text)
 {
     _buffer = initBuffer(text.data(), text.size());
@@ -20,7 +22,10 @@ Lexer::Lexer(std::string_view text)
 
 Lexer::~Lexer()
 {
-    freeBuffer(_buffer);
+    if (_buffer)
+    {
+        freeBuffer(_buffer);
+    }
 }
 
 Token Lexer::next()
