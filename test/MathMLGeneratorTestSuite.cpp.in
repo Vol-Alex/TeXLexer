@@ -1,0 +1,42 @@
+#include "src/mml/MathMLGenerator.h"
+
+#include <gtest/gtest.h>
+
+#include <sstream>
+#include <fstream>
+
+namespace TXL
+{
+using namespace testing;
+
+class MathMLGeneratorTestSuite :public ::testing::TestWithParam<std::string>
+{
+};
+
+TEST_P(MathMLGeneratorTestSuite, test)
+{
+    const auto& texFileName = GetParam();
+    const auto xmlFileName = texFileName.substr(0, texFileName.size() - 3) + "xml";
+
+    std::ifstream texFile(texFileName);
+    std::string tex((std::istreambuf_iterator<char>(texFile)),
+                     std::istreambuf_iterator<char>());
+
+
+    std::stringstream ss;
+    MathMLGenerator generator(ss);
+    generator.generate(tex);
+
+    std::ifstream xmlFile(xmlFileName);
+    std::string xml((std::istreambuf_iterator<char>(xmlFile)),
+                     std::istreambuf_iterator<char>());
+    EXPECT_EQ(xml, ss.str());
+}
+
+INSTANTIATE_TEST_SUITE_P(
+        /* nothing */,
+        MathMLGeneratorTestSuite,
+        ::testing::Values(
+${TEX_FILES_TO_CONFIG}
+        ));
+} // namespace TXL

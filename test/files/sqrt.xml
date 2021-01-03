@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<math xmlns="http://www.w3.org/1998/Math/MathML">
+<mstyle displaystyle="true">
+<mrow><mroot><mrow><mi>(x</mi><mo>-</mo><msup><mrow><mi>y)</mi></mrow><mrow><mi>3</mi></mrow></msup></mrow><mrow><mi>3</mi></mrow></mroot><mo>=</mo><mi>x</mi><mo>-</mo><mi>y</mi></mrow></mstyle>
+</math>
