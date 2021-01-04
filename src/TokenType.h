@@ -6,6 +6,7 @@ enum TokenType
     COMMAND,
     START_GROUP,
     END_GROUP,
+    DIGIT,
     TEXT,
     SIGN,
 };

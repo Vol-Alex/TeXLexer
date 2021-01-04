@@ -13,14 +13,14 @@ TEST(LexerTestSuite, parseSQRT)
 
     EXPECT_EQ((Token{COMMAND, "sqrt"}), lexer.next());
     EXPECT_EQ((Token{START_GROUP, "["}), lexer.next());
-    EXPECT_EQ((Token{TEXT, "3"}), lexer.next());
+    EXPECT_EQ((Token{DIGIT, "3"}), lexer.next());
     EXPECT_EQ((Token{END_GROUP, "]"}), lexer.next());
     EXPECT_EQ((Token{START_GROUP, "{"}), lexer.next());
     EXPECT_EQ((Token{TEXT, "(x"}), lexer.next());
     EXPECT_EQ((Token{SIGN, "-"}), lexer.next());
     EXPECT_EQ((Token{TEXT, "y)"}), lexer.next());
     EXPECT_EQ((Token{SIGN, "^"}), lexer.next());
-    EXPECT_EQ((Token{TEXT, "4"}), lexer.next());
+    EXPECT_EQ((Token{DIGIT, "4"}), lexer.next());
     EXPECT_EQ((Token{END_GROUP, "}"}), lexer.next());
     EXPECT_EQ((Token{SIGN, "="}), lexer.next());
     EXPECT_EQ((Token{TEXT, "x"}), lexer.next());

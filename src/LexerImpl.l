@@ -25,7 +25,7 @@
 
 EOF     {return END;}
 
-[^\$\\{}\[\]\^\+\-\=]    {BEGIN(_TEXT_); yyless(0);}
+.       {BEGIN(_TEXT_); yyless(0);}
 
 <_COMMAND_>
 {
@@ -39,7 +39,8 @@ EOF     {return END;}
 
 <_TEXT_>
 {
-[^\$\\{}\[\]\^\+\-\= \t\n]+    {BEGIN(INITIAL); return TEXT;}
+[0-9]+                            {BEGIN(INITIAL); return DIGIT;}
+[^\$\\{}\[\]\^\+\-\= \t\n0-9]+    {BEGIN(INITIAL); return TEXT;}
 }
 
 %%

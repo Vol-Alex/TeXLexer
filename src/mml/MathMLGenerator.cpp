@@ -50,18 +50,13 @@ public:
                 }
             }
 
-            case TEXT:
-            {
-                _lastTokenPos = _out.size();
-                _out.append(R"(<mi>)").append(token.content.data(), token.content.size()).append(R"(</mi>)");
+            case DIGIT:
+                append("mn", token.content);
                 return true;
-            }
 
-            case START_GROUP:
-            case END_GROUP:
-            {
+            case TEXT:
+                append("mi", token.content);
                 return true;
-            }
 
             case SIGN:
             {
@@ -72,10 +67,13 @@ public:
                     _nestedBuilder = makeSUP();
                     return true;
                 }
-                _lastTokenPos = _out.size();
-                _out.append(R"(<mo>)").append(token.content.data(), token.content.size()).append(R"(</mo>)");
+                append("mo", token.content);
                 return true;
             }
+
+            case START_GROUP:
+            case END_GROUP:
+                return true;
 
             case END:
                 break;
@@ -85,15 +83,23 @@ public:
 
     std::string take() override
     {
-        _out.insert(0, R"(<mrow>)");
         _out.append(R"(</mrow>)");
         return std::move(_out);
     }
 
 private:
-    std::string _out;
+    void append(const char* xmlNodeName, const std::string_view content)
+    {
+        _lastTokenPos = _out.size();
+        _out.append("<").append(xmlNodeName).append(">")
+            .append(content.data(), content.size())
+            .append("</").append(xmlNodeName).append(">");
+    }
+
+private:
+    std::string _out = std::string("<mrow>");
     std::unique_ptr<Builder> _nestedBuilder;
-    std::size_t _lastTokenPos = 0;
+    std::size_t _lastTokenPos = 6;
 };
 
 class OptArgBuilder final : public Builder
