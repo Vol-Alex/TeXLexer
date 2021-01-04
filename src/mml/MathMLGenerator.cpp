@@ -151,8 +151,8 @@ public:
         {
             case START_GROUP:
             {
-                if (_groupIndex == 0 && token.content[0] == '{') ++_groupIndex;
-                else ++_groupIndex;
+                ++_groupIndex;
+                if (_groupIndex == 1 && token.content[0] != '{') --_groupIndex;
                 break;
             }
 
@@ -166,10 +166,7 @@ public:
                 break;
         }
 
-        if (_groupIndex == 0)
-        {
-            _groupIndex = MAX_INDEX;
-        }
+        if (_groupIndex == 0) _groupIndex = MAX_INDEX;
 
         return _rowBuilder.add(token);
     }
@@ -184,6 +181,30 @@ private:
     RowBuilder _rowBuilder;
 };
 
+std::unique_ptr<Builder> makeFRAC()
+{
+    class FRACBuilder final : public Builder
+    {
+        bool add(const Token& token) override
+        {
+            return _arg1.add(token) || _arg2.add(token);
+        }
+
+        std::string take() override
+        {
+            std::string out(R"(<mfrac>)");
+            out.append(_arg1.take());
+            out.append(_arg2.take());
+            out.append(R"(</mfrac>)");
+            return out;
+        }
+
+    private:
+        ArgBuilder _arg1;
+        ArgBuilder _arg2;
+    };
+    return std::make_unique<FRACBuilder>();
+}
 
 std::unique_ptr<Builder> makeSQRT()
 {
@@ -236,6 +257,7 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
 {
     static const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()> map =
     {
+    {"frac", makeFRAC},
     {"sqrt", makeSQRT},
     {"^", makeSUP},
     };
@@ -265,7 +287,7 @@ void MathMLGenerator::generateFromIN()
 
 void MathMLGenerator::generate(Lexer& lexer)
 {
-    _out << R"(<?xml version="1.0"?>)" << std::endl;
+    _out << R"(<?xml version="1.0" encoding="UTF-8"?>)" << std::endl;
     _out << R"(<math xmlns="http://www.w3.org/1998/Math/MathML">)" << std::endl;
     _out << R"(<mstyle displaystyle="true">)" << std::endl;
 

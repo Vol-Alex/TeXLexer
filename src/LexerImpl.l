@@ -9,6 +9,7 @@
 %%
 
 "$"{1,2}
+[ \t\n]
 "\\"    {BEGIN(_COMMAND_);}
 
 "{" |
@@ -38,7 +39,7 @@ EOF     {return END;}
 
 <_TEXT_>
 {
-[^\$\\{}\[\]\^\+\-\=]+    {BEGIN(INITIAL); return TEXT;}
+[^\$\\{}\[\]\^\+\-\= \t\n]+    {BEGIN(INITIAL); return TEXT;}
 }
 
 %%
