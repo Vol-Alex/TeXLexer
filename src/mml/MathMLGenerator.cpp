@@ -21,6 +21,7 @@ public:
 
 const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilderFactory();
 std::unique_ptr<Builder> makeSUP();
+std::unique_ptr<Builder> makeSUB();
 
 class RowBuilder final : public Builder
 {
@@ -62,9 +63,16 @@ public:
             {
                 if (token.content[0] == '^')
                 {
-                    _out.insert(_lastTokenPos, R"(<msup><mrow>)");
-                    _out.append(R"(</mrow>)");
+                    _out.insert(_lastTokenPos, "<msup><mrow>");
+                    _out.append("</mrow>");
                     _nestedBuilder = makeSUP();
+                    return true;
+                }
+                else if (token.content[0] == '_')
+                {
+                    _out.insert(_lastTokenPos, "<msub><mrow>");
+                    _out.append("</mrow>");
+                    _nestedBuilder = makeSUB();
                     return true;
                 }
                 append("mo", token.content);
@@ -237,26 +245,38 @@ std::unique_ptr<Builder> makeSQRT()
     return std::make_unique<SQRTBuilder>();
 }
 
+class SUPSUBBuilder final : public Builder
+{
+public:
+    SUPSUBBuilder(std::string&& xmlNodeName)
+        : _xmlNodeName(std::move(xmlNodeName))
+    {}
+
+    bool add(const Token& token) override
+    {
+        return _arg.add(token);
+    }
+
+    std::string take() override
+    {
+        auto out = _arg.take();
+        out.append("</").append(_xmlNodeName).append(">");
+        return out;
+    }
+
+private:
+    std::string _xmlNodeName;
+    ArgBuilder _arg;
+};
+
 std::unique_ptr<Builder> makeSUP()
 {
-    class SUPBuilder final : public Builder
-    {
-        bool add(const Token& token) override
-        {
-            return _arg.add(token);
-        }
+    return std::make_unique<SUPSUBBuilder>("msup");
+}
 
-        std::string take() override
-        {
-            auto out = _arg.take();
-            out.append(R"(</msup>)");
-            return out;
-        }
-
-    private:
-        ArgBuilder _arg;
-    };
-    return std::make_unique<SUPBuilder>();
+std::unique_ptr<Builder> makeSUB()
+{
+    return std::make_unique<SUPSUBBuilder>("msub");
 }
 
 const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilderFactory()
@@ -266,6 +286,7 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
     {"frac", makeFRAC},
     {"sqrt", makeSQRT},
     {"^", makeSUP},
+    {"_", makeSUB},
     };
     return map;
 }

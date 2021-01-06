@@ -19,6 +19,7 @@
 "]"     {return END_GROUP;}
 
 "^" |
+"_" |
 "+" |
 "-" |
 "="     {return SIGN;}
@@ -33,14 +34,15 @@ EOF     {return END;}
 "}" |
 "[" |
 "]" |
+"_" |
 "^"          {BEGIN(INITIAL); return TEXT;}
 [a-zA-Z]+    {BEGIN(INITIAL); return COMMAND;}
 }
 
 <_TEXT_>
 {
-[0-9]+                            {BEGIN(INITIAL); return DIGIT;}
-[^\$\\{}\[\]\^\+\-\= \t\n0-9]+    {BEGIN(INITIAL); return TEXT;}
+[0-9]+                              {BEGIN(INITIAL); return DIGIT;}
+[^\$\\{}\[\]\^\_\+\-\= \t\n0-9]+    {BEGIN(INITIAL); return TEXT;}
 }
 
 %%
