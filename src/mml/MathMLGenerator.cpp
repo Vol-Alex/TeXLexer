@@ -19,6 +19,15 @@ public:
     virtual std::string take() = 0;
 };
 
+const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
+{
+    static const std::unordered_map<std::string, std::string> map = {
+        {"Pi", "\xCE\xA0"},
+        {"pi", "\xCF\x80"}
+    };
+    return map;
+}
+
 const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilderFactory();
 std::unique_ptr<Builder> makeSUP();
 std::unique_ptr<Builder> makeSUB();
@@ -43,7 +52,16 @@ public:
         {
             case COMMAND:
             {
-                auto it = getBuilderFactory().find(std::string(token.content));
+                const auto content = std::string(token.content);
+
+                auto symbolCmdIt = getSymbolCmdMap().find(content);
+                if (symbolCmdIt != getSymbolCmdMap().end())
+                {
+                    append("mi", symbolCmdIt->second);
+                    return true;
+                }
+
+                auto it = getBuilderFactory().find(content);
                 if (it != getBuilderFactory().end())
                 {
                     _nestedBuilder = (*it->second)();
