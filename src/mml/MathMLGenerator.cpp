@@ -263,6 +263,59 @@ std::unique_ptr<Builder> makeSQRT()
     return std::make_unique<SQRTBuilder>();
 }
 
+std::unique_ptr<Builder> makeLeftRight()
+{
+    class LeftRightBuilder final : public Builder
+    {
+    public:
+        bool add(const Token& token) override
+        {
+            if (!_ch.empty())
+            {
+                return false;
+            }
+
+            switch (token.type)
+            {
+                case SIGN:
+                case START_GROUP:
+                case END_GROUP:
+                {
+                    switch (token.content[0])
+                    {
+                        case '(':
+                        case ')':
+                        case '[':
+                        case ']':
+                            _ch = token.content;
+                            return true;
+
+                        default:
+                            break;
+                    }
+                }
+
+                case COMMAND:
+                case DIGIT:
+                case TEXT:
+                case END:
+                    break;
+            }
+            return false;
+        }
+
+        std::string take() override
+        {
+            return R"(<mo fence="true" stretchy="true">)" + _ch + "</mo>";
+        }
+
+    private:
+        std::string _ch;
+    };
+
+    return std::make_unique<LeftRightBuilder>();
+}
+
 class SUPSUBBuilder final : public Builder
 {
 public:
@@ -303,6 +356,8 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
     {
     {"frac", makeFRAC},
     {"sqrt", makeSQRT},
+    {"left", makeLeftRight},
+    {"right", makeLeftRight},
     {"^", makeSUP},
     {"_", makeSUB},
     };
