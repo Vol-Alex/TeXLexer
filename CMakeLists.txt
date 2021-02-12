@@ -21,12 +21,18 @@ SET_SOURCE_FILES_PROPERTIES(${CMAKE_BINARY_DIR}/src/LexerImpl.c GENERATED)
 add_library(TeXLexer ${SRC})
 set_target_properties(TeXLexer PROPERTIES PUBLIC_HEADER "${HDR}")
 
-add_executable(texToMML texToMML.cpp)
-target_link_libraries(texToMML LINK_PUBLIC
-    TeXLexer
-)
+if(NOT DEFINED TXL_BUILD_LIB_ONLY)
+    set(TXL_BUILD_LIB_ONLY False)
+endif()
 
-add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/test")
+if(NOT TXL_BUILD_LIB_ONLY)
+    add_executable(texToMML texToMML.cpp)
+    target_link_libraries(texToMML LINK_PUBLIC
+                          TeXLexer
+    )
+
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/test")
+endif()
 
 install(TARGETS TeXLexer
         DESTINATION TeXLexer/)
