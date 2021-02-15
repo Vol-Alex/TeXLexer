@@ -2,14 +2,14 @@
 
 #include "TokenType.h"
 
-#include <string_view>
+#include <string>
 
 namespace TXL
 {
 struct Token final
 {
     TokenType type;
-    std::string_view content;
+    std::string content; // TODO: Use string_view
 };
 
 inline bool operator ==(const Token& l, const Token& r)

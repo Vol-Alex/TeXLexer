@@ -114,7 +114,7 @@ public:
     }
 
 private:
-    void append(const char* xmlNodeName, const std::string_view content)
+    void append(const char* xmlNodeName, const std::string& content)
     {
         _lastTokenPos = _out.size();
         _out.append("<").append(xmlNodeName).append(">")

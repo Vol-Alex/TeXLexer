@@ -8,7 +8,7 @@ class Lexer final
 {
 public:
     Lexer();
-    Lexer(std::string_view text);
+    Lexer(const std::string& text);
     ~Lexer();
 
     Token next();

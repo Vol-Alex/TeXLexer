@@ -53,6 +53,7 @@ file(GLOB_RECURSE SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.*)
 list(APPEND SRC ${CMAKE_CURRENT_BINARY_DIR}/MathMLGeneratorTestSuite.cpp)
 
 add_executable(test ${SRC})
+add_dependencies(test gtest)
 target_link_libraries(test LINK_PUBLIC
     TeXLexer
     libgtest

@@ -15,7 +15,7 @@ namespace TXL
 {
 Lexer::Lexer() = default;
 
-Lexer::Lexer(std::string_view text)
+Lexer::Lexer(const std::string& text)
 {
     _buffer = initBuffer(text.data(), text.size());
 }
@@ -31,6 +31,6 @@ Lexer::~Lexer()
 Token Lexer::next()
 {
     auto result = yylex();
-    return {TokenType(result), std::string_view(yyget_text(), yyget_leng())};
+    return {TokenType(result), std::string(yyget_text(), yyget_leng())};
 }
 } // namespace TXL
