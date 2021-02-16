@@ -1,6 +1,8 @@
 #include "MathMLGenerator.h"
 #include "src/Lexer.h"
 
+#include <limits>
+#include <memory>
 #include <unordered_map>
 
 namespace TXL
