@@ -1,4 +1,6 @@
 %option noyywrap
+%option never-interactive
+%option nounistd
 %option prefix="txl"
 
 %{
