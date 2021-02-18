@@ -31,8 +31,8 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
 }
 
 const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilderFactory();
-std::unique_ptr<Builder> makeSUP();
-std::unique_ptr<Builder> makeSUB();
+std::unique_ptr<Builder> makeSUP(std::string&& firstArg);
+std::unique_ptr<Builder> makeSUB(std::string&& firstArg);
 
 class RowBuilder final : public Builder
 {
@@ -45,7 +45,6 @@ public:
             {
                 return true;
             }
-            _lastTokenPos = _out.size();
             _out.append(_nestedBuilder->take());
             _nestedBuilder.reset();
         }
@@ -66,6 +65,7 @@ public:
                 auto it = getBuilderFactory().find(content);
                 if (it != getBuilderFactory().end())
                 {
+                    _lastTokenPos = _out.size();
                     _nestedBuilder = (*it->second)();
                     return true;
                 }
@@ -83,16 +83,14 @@ public:
             {
                 if (token.content[0] == '^')
                 {
-                    _out.insert(_lastTokenPos, "<msup><mrow>");
-                    _out.append("</mrow>");
-                    _nestedBuilder = makeSUP();
+                    _nestedBuilder = makeSUP(_out.substr(_lastTokenPos));
+                    _out.erase(_lastTokenPos);
                     return true;
                 }
                 else if (token.content[0] == '_')
                 {
-                    _out.insert(_lastTokenPos, "<msub><mrow>");
-                    _out.append("</mrow>");
-                    _nestedBuilder = makeSUB();
+                    _nestedBuilder = makeSUB(_out.substr(_lastTokenPos));
+                    _out.erase(_lastTokenPos);
                     return true;
                 }
                 append("mo", token.content);
@@ -320,36 +318,94 @@ std::unique_ptr<Builder> makeLeftRight()
 
 class SUPSUBBuilder final : public Builder
 {
+    enum class State
+    {
+        None,
+        SupSub,
+        SubSup,
+    };
 public:
-    SUPSUBBuilder(std::string&& xmlNodeName)
+    SUPSUBBuilder(std::string&& xmlNodeName,
+                  std::string&& firstArg)
         : _xmlNodeName(std::move(xmlNodeName))
+        , _firstArg(std::move(firstArg))
     {}
 
     bool add(const Token& token) override
     {
-        return _arg.add(token);
+        if (_arg.add(token))
+        {
+            return true;
+        }
+
+        if (_state != State::None)
+        {
+            return false;
+        }
+
+        switch(token.type)
+        {
+            case SIGN:
+            {
+                if (token.content[0] == '^' && _xmlNodeName == "msub")
+                {
+                    installState(State::SubSup);
+                    return true;
+                }
+                else if (token.content[0] == '_' && _xmlNodeName == "msup")
+                {
+                    installState(State::SupSub);
+                    return true;
+                }
+            }
+
+            default:
+                break;
+        }
+        return false;
     }
 
     std::string take() override
     {
-        auto out = _arg.take();
-        out.append("</").append(_xmlNodeName).append(">");
-        return out;
+        _firstArg.insert(0, "<" + _xmlNodeName + "><mrow>");
+        _firstArg.append("</mrow>");
+
+        if (_state == State::SubSup) _firstArg += _additionalArg;
+
+        _firstArg += _arg.take();
+
+        if (_state == State::SupSub) _firstArg += _additionalArg;
+
+        _firstArg.append("</").append(_xmlNodeName).append(">");
+        return std::move(_firstArg);
+    }
+
+private:
+    void installState(const State state)
+    {
+        _additionalArg = _arg.take();
+        _arg = ArgBuilder();
+        _state = state;
+        _xmlNodeName = "msubsup";
     }
 
 private:
     std::string _xmlNodeName;
+    State _state = State::None;
+
+    std::string _firstArg;
+    std::string _additionalArg;
     ArgBuilder _arg;
 };
 
-std::unique_ptr<Builder> makeSUP()
+std::unique_ptr<Builder> makeSUP(std::string&& firstArg)
 {
-    return std::make_unique<SUPSUBBuilder>("msup");
+    return std::make_unique<SUPSUBBuilder>("msup", std::move(firstArg));
 }
 
-std::unique_ptr<Builder> makeSUB()
+std::unique_ptr<Builder> makeSUB(std::string&& firstArg)
 {
-    return std::make_unique<SUPSUBBuilder>("msub");
+    return std::make_unique<SUPSUBBuilder>("msub",  std::move(firstArg));
 }
 
 const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilderFactory()
@@ -360,8 +416,6 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
     {"sqrt", makeSQRT},
     {"left", makeLeftRight},
     {"right", makeLeftRight},
-    {"^", makeSUP},
-    {"_", makeSUB},
     };
     return map;
 }
