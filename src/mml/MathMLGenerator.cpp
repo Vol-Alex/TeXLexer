@@ -24,6 +24,7 @@ public:
 const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
 {
     static const std::unordered_map<std::string, std::string> map = {
+        // Greek letters
         {"alpha", "\xCE\xB1"},
         {"beta", "\xCE\xB2"},
         {"Gamma", "\xCE\x93"},
@@ -64,6 +65,17 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
         {"varpi", "\xCF\x96"},
         {"varrho", "\xCF\xB1"},
         {"varepsilon", "\xCF\xB5"},
+
+        //Symbols
+        {"pm", "\xC2\xB1"},
+        {"approx", "\xE2\x89\x88"},
+        {"propto", "\xE2\x88\x9D"},
+        {"ne", "\xE2\x89\xA0"},
+        {"neq", "\xE2\x89\xA0"},
+        {"le", "\xE2\x89\xA4"},
+        {"leq", "\xE2\x89\xA4"},
+        {"ge", "\xE2\x89\xA5"},
+        {"geq", "\xE2\x89\xA5"},
     };
     return map;
 }
