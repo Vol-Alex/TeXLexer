@@ -7,7 +7,7 @@
 #include "src/TokenType.h"
 %}
 
-%x _COMMAND_ _TEXT_
+%x _COMMAND_ _TEXT_ _BEGIN_ENV_ _END_ENV_
 
 %%
 
@@ -21,6 +21,7 @@
 "}" |
 "]"     {return END_GROUP;}
 
+"&" |
 "(" |
 ")" |
 "^" |
@@ -40,8 +41,25 @@ EOF     {return END;}
 "[" |
 "]" |
 "_" |
-"^"          {BEGIN(INITIAL); return TEXT;}
-[a-zA-Z]+    {BEGIN(INITIAL); return COMMAND;}
+"^"         {BEGIN(INITIAL); return TEXT;}
+"\\"        {BEGIN(INITIAL); return SIGN;}
+"begin"     {BEGIN(_BEGIN_ENV_);}
+"end"       {BEGIN(_END_ENV_);}
+[a-zA-Z]+   {BEGIN(INITIAL); return COMMAND;}
+}
+
+<_BEGIN_ENV_>
+{
+"{"
+"}"         {BEGIN(INITIAL);}
+[a-zA-Z]+   {return BEGIN_ENV;}
+}
+
+<_END_ENV_>
+{
+"{"
+"}"         {BEGIN(INITIAL);}
+[a-zA-Z]+   {return END_ENV;}
 }
 
 <_TEXT_>

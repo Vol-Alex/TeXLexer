@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<math xmlns="http://www.w3.org/1998/Math/MathML">
+<mstyle displaystyle="true">
+<mrow><mo fence="true" stretchy="true">(</mo><mtable><mtr><mtd><msub><mrow><mi>a</mi></mrow><mrow><mn>11</mn></mrow></msub></mtd><mtd><msub><mrow><mi>a</mi></mrow><mrow><mn>12</mn></mrow></msub></mtd><mtd><msub><mrow><mi>a</mi></mrow><mrow><mn>13</mn></mrow></msub></mtd></mtr><mtr><mtd><msub><mrow><mi>a</mi></mrow><mrow><mn>21</mn></mrow></msub></mtd><mtd><msub><mrow><mi>a</mi></mrow><mrow><mn>22</mn></mrow></msub></mtd><mtd><msub><mrow><mi>a</mi></mrow><mrow><mn>23</mn></mrow></msub></mtd></mtr><mtr><mtd><msub><mrow><mi>a</mi></mrow><mrow><mn>31</mn></mrow></msub></mtd><mtd><msub><mrow><mi>a</mi></mrow><mrow><mn>32</mn></mrow></msub></mtd><mtd><msub><mrow><mi>a</mi></mrow><mrow><mn>33</mn></mrow></msub></mtd></mtr></mtable><mo fence="true" stretchy="true">)</mo></mrow></mstyle>
+</math>

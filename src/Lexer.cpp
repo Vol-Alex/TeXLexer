@@ -6,6 +6,7 @@ extern "C"
 int txllex();
 std::size_t txlget_leng();
 char *txlget_text();
+int txllex_destroy();
 
 void* initBuffer(const char* text, std::size_t size);
 void freeBuffer(void* buffer);
@@ -26,6 +27,7 @@ Lexer::~Lexer()
     {
         freeBuffer(_buffer);
     }
+    txllex_destroy();
 }
 
 Token Lexer::next()

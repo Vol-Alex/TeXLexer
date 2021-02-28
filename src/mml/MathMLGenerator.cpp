@@ -81,12 +81,21 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
 }
 
 const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilderFactory();
+const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getEnvBuilderFactory();
 std::unique_ptr<Builder> makeSUP(std::string&& firstArg);
 std::unique_ptr<Builder> makeSUB(std::string&& firstArg);
 
 class RowBuilder final : public Builder
 {
 public:
+    RowBuilder(std::string&& nodeName = "mrow", const bool isInEnv = false)
+        : _nodeName(std::move(nodeName))
+        , _isInEnv(isInEnv)
+    {
+        _out.append("<").append(_nodeName).append(">");
+        _lastTokenPos = _out.size();
+    }
+
     bool add(const Token& token) override
     {
         if (_nestedBuilder)
@@ -103,7 +112,7 @@ public:
         {
             case COMMAND:
             {
-                const auto content = std::string(token.content);
+                const auto& content = token.content;
 
                 auto symbolCmdIt = getSymbolCmdMap().find(content);
                 if (symbolCmdIt != getSymbolCmdMap().end())
@@ -121,27 +130,42 @@ public:
                 }
             }
 
-            case DIGIT:
-                append("mn", token.content);
-                return true;
-
             case TEXT:
                 append("mi", token.content);
                 return true;
 
+            case DIGIT:
+                append("mn", token.content);
+                return true;
+
             case SIGN:
             {
-                if (token.content[0] == '^')
+                switch (token.content[0])
                 {
-                    _nestedBuilder = makeSUP(_out.substr(_lastTokenPos));
-                    _out.erase(_lastTokenPos);
-                    return true;
-                }
-                else if (token.content[0] == '_')
-                {
-                    _nestedBuilder = makeSUB(_out.substr(_lastTokenPos));
-                    _out.erase(_lastTokenPos);
-                    return true;
+                    case '^':
+                    {
+                        _nestedBuilder = makeSUP(_out.substr(_lastTokenPos));
+                        _out.erase(_lastTokenPos);
+                        return true;
+                    }
+                    case '_':
+                    {
+                        _nestedBuilder = makeSUB(_out.substr(_lastTokenPos));
+                        _out.erase(_lastTokenPos);
+                        return true;
+                    }
+
+                    case '&':
+                    case '\\':
+                    {
+                        if (_isInEnv)
+                        {
+                            return false;
+                        }
+                    }
+
+                    default:
+                        break;
                 }
                 append("mo", token.content);
                 return true;
@@ -151,6 +175,20 @@ public:
             case END_GROUP:
                 return true;
 
+            case BEGIN_ENV:
+            {
+                const auto& content = token.content;
+
+                auto it = getEnvBuilderFactory().find(content);
+                if (it != getEnvBuilderFactory().end())
+                {
+                    _lastTokenPos = _out.size();
+                    _nestedBuilder = (*it->second)();
+                    return true;
+                }
+            }
+
+            case END_ENV:
             case END:
                 break;
         }
@@ -159,7 +197,7 @@ public:
 
     std::string take() override
     {
-        _out.append(R"(</mrow>)");
+        _out.append("</").append(_nodeName).append(">");
         return std::move(_out);
     }
 
@@ -173,9 +211,11 @@ private:
     }
 
 private:
-    std::string _out = std::string("<mrow>");
+    std::string _nodeName;
+    std::string _out;
     std::unique_ptr<Builder> _nestedBuilder;
-    std::size_t _lastTokenPos = 6;
+    std::size_t _lastTokenPos;
+    bool _isInEnv;
 };
 
 class OptArgBuilder final : public Builder
@@ -345,10 +385,7 @@ std::unique_ptr<Builder> makeLeftRight()
                     }
                 }
 
-                case COMMAND:
-                case DIGIT:
-                case TEXT:
-                case END:
+                default:
                     break;
             }
             return false;
@@ -458,6 +495,86 @@ std::unique_ptr<Builder> makeSUB(std::string&& firstArg)
     return std::make_unique<SUPSUBBuilder>("msub",  std::move(firstArg));
 }
 
+std::unique_ptr<Builder> makeMATRIX()
+{
+    class MATRIXBuilder final : public Builder
+    {
+    public:
+        bool add(const Token& token) override
+        {
+            if (_rowBeginPos == MAX_INDEX)
+            {
+                // MATRIX is completed
+                return false;
+            }
+
+            if (_tdBuilder.add(token))
+            {
+                return true;
+            }
+
+            switch (token.type)
+            {
+                case SIGN:
+                {
+                    switch (token.content[0])
+                    {
+                        case '&':
+                        {
+                            _out.append(_tdBuilder.take());
+                            _tdBuilder = RowBuilder("mtd", true);
+                            return true;
+                        }
+
+                        case '\\':
+                        {
+                            _out.insert(_rowBeginPos, "<mtr>");
+                            _out.append(_tdBuilder.take()).append("</mtr>");
+                            _rowBeginPos = _out.size();
+                            _tdBuilder = RowBuilder("mtd", true);
+                            return true;
+                        }
+                        default:
+                            break;
+                    }
+                }
+
+                case END_ENV:
+                {
+                    if (token.content == "matrix")
+                    {
+                        auto result = _tdBuilder.take();
+                        if (result.size() > 11)
+                        {
+                            _out.insert(_rowBeginPos, "<mtr>");
+                            _out.append(std::move(result)).append("</mtr>");
+                        }
+                        _rowBeginPos = MAX_INDEX;
+                        return true;
+                    }
+                }
+
+                default:
+                    break;
+            }
+            return false;
+        }
+
+        std::string take() override
+        {
+            _out.append("</mtable>");
+            return std::move(_out);
+        }
+
+    private:
+        std::string _out = std::string("<mtable>");
+        std::size_t _rowBeginPos = _out.size();
+        RowBuilder _tdBuilder = RowBuilder("mtd", true);
+    };
+
+    return std::make_unique<MATRIXBuilder>();
+}
+
 const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilderFactory()
 {
     static const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()> map =
@@ -466,6 +583,15 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
     {"sqrt", makeSQRT},
     {"left", makeLeftRight},
     {"right", makeLeftRight},
+    };
+    return map;
+}
+
+const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getEnvBuilderFactory()
+{
+    static const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()> map =
+    {
+    {"matrix", makeMATRIX},
     };
     return map;
 }

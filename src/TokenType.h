@@ -6,6 +6,8 @@ enum TokenType
     COMMAND,
     START_GROUP,
     END_GROUP,
+    BEGIN_ENV,
+    END_ENV,
     DIGIT,
     TEXT,
     SIGN,
