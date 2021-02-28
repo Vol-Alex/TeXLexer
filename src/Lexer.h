@@ -14,6 +14,7 @@ public:
     Token next();
 
 private:
+    void* _scanCtx = nullptr;
     void* _buffer = nullptr;
 };
 } // namespace TXL

@@ -3,36 +3,46 @@
 
 extern "C"
 {
-int txllex();
-std::size_t txlget_leng();
-char *txlget_text();
-int txllex_destroy();
+int txllex_init(void* scanCtx) ;
+int txllex_destroy(void* scanCtx) ;
 
-void* initBuffer(const char* text, std::size_t size);
-void freeBuffer(void* buffer);
+int txllex(void* scanCtx);
+std::size_t txlget_leng(void* scanCtx);
+char* txlget_text(void* scanCtx);
+
+void* initBuffer(const char* text, std::size_t size, void* const scanCtx);
+void freeBuffer(void* buffer, void* const scanCtx);
 }
 
 namespace TXL
 {
-Lexer::Lexer() = default;
+Lexer::Lexer()
+{
+    txllex_init(&_scanCtx);
+}
 
 Lexer::Lexer(const std::string& text)
 {
-    _buffer = initBuffer(text.data(), text.size());
+    txllex_init(&_scanCtx);
+    _buffer = initBuffer(text.data(), text.size(), _scanCtx);
 }
 
 Lexer::~Lexer()
 {
     if (_buffer)
     {
-        freeBuffer(_buffer);
+        freeBuffer(_buffer, _scanCtx);
     }
-    txllex_destroy();
+
+    if (_scanCtx)
+    {
+        txllex_destroy(_scanCtx);
+    }
 }
 
 Token Lexer::next()
 {
-    auto result = txllex();
-    return {TokenType(result), std::string(txlget_text(), txlget_leng())};
+    auto result = txllex(_scanCtx);
+    return {TokenType(result), std::string(txlget_text(_scanCtx), txlget_leng(_scanCtx))};
 }
 } // namespace TXL

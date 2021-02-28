@@ -8,6 +8,10 @@ include_directories(PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 file(GLOB_RECURSE SRC ${CMAKE_SOURCE_DIR}/src/*.*)
 file(GLOB_RECURSE HDR ${CMAKE_SOURCE_DIR}/src/*.h)
 
+if(NOT DEFINED TXL_GENERATE_LEXER)
+    set(TXL_GENERATE_LEXER True)
+endif()
+
 if(TXL_GENERATE_LEXER)
     add_custom_target(
         LexerImpl

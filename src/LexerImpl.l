@@ -1,4 +1,5 @@
 %option noyywrap
+%option reentrant
 %option never-interactive
 %option nounistd
 %option prefix="txl"
@@ -70,13 +71,13 @@ EOF     {return END;}
 
 %%
 
-void* initBuffer(const char* text, yy_size_t size)
+void* initBuffer(const char* text, yy_size_t size, void* const scanCtx)
 {
-    return yy_scan_bytes(text, size);
+    return yy_scan_bytes(text, size, scanCtx);
 }
 
-void freeBuffer(void* buffer)
+void freeBuffer(void* buffer, void* const scanCtx)
 {
-    yy_delete_buffer((YY_BUFFER_STATE)buffer);
+    yy_delete_buffer((YY_BUFFER_STATE)buffer, scanCtx);
 }
 
