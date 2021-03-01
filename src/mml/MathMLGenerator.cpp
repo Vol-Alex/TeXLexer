@@ -540,17 +540,14 @@ std::unique_ptr<Builder> makeEnvBuilder()
 
                 case END_ENV:
                 {
-                    if (token.content == "matrix")
+                    auto result = _tdBuilder.take();
+                    if (result.size() > 11)
                     {
-                        auto result = _tdBuilder.take();
-                        if (result.size() > 11)
-                        {
-                            _out.insert(_rowBeginPos, "<mtr>");
-                            _out.append(std::move(result)).append("</mtr>");
-                        }
-                        _rowBeginPos = MAX_INDEX;
-                        return true;
+                        _out.insert(_rowBeginPos, "<mtr>");
+                        _out.append(std::move(result)).append("</mtr>");
                     }
+                    _rowBeginPos = MAX_INDEX;
+                    return true;
                 }
 
                 default:
