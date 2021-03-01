@@ -81,7 +81,8 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
 }
 
 const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilderFactory();
-const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getEnvBuilderFactory();
+
+std::unique_ptr<Builder> makeEnvBuilder();
 std::unique_ptr<Builder> makeSUP(std::string&& firstArg);
 std::unique_ptr<Builder> makeSUB(std::string&& firstArg);
 
@@ -177,15 +178,9 @@ public:
 
             case BEGIN_ENV:
             {
-                const auto& content = token.content;
-
-                auto it = getEnvBuilderFactory().find(content);
-                if (it != getEnvBuilderFactory().end())
-                {
-                    _lastTokenPos = _out.size();
-                    _nestedBuilder = (*it->second)();
-                    return true;
-                }
+                _lastTokenPos = _out.size();
+                _nestedBuilder = makeEnvBuilder();
+                return true;
             }
 
             case END_ENV:
@@ -495,17 +490,21 @@ std::unique_ptr<Builder> makeSUB(std::string&& firstArg)
     return std::make_unique<SUPSUBBuilder>("msub",  std::move(firstArg));
 }
 
-std::unique_ptr<Builder> makeMATRIX()
+std::unique_ptr<Builder> makeEnvBuilder()
 {
-    class MATRIXBuilder final : public Builder
+    class EnvBuilder final : public Builder
     {
     public:
         bool add(const Token& token) override
         {
             if (_rowBeginPos == MAX_INDEX)
             {
-                // MATRIX is completed
                 return false;
+            }
+
+            if (_arg.add(token))
+            {
+                return true;
             }
 
             if (_tdBuilder.add(token))
@@ -567,12 +566,63 @@ std::unique_ptr<Builder> makeMATRIX()
         }
 
     private:
+        struct Arg final
+        {
+            bool add(const Token& token)
+            {
+                if (isProcessed)
+                {
+                    return false;
+                }
+
+                switch (token.type)
+                {
+                    case START_GROUP:
+                    {
+                        if (token.content[0] == '{')
+                        {
+                            data += token.content;
+                            return true;
+                        }
+                    }
+
+                    case END_GROUP:
+                    {
+                        if (token.content[0] == '}')
+                        {
+                            data += token.content;
+                            isProcessed = true;
+                            return true;
+                        }
+                    }
+
+                    default:
+                    {
+                        if (!data.empty())
+                        {
+                            data += token.content;
+                            return true;
+                        }
+                        break;
+                    }
+                }
+
+                isProcessed = true;
+                return false;
+            }
+
+            std::string data;
+            bool isProcessed = false;
+        };
+
+    private:
+        Arg _arg;
         std::string _out = std::string("<mtable>");
         std::size_t _rowBeginPos = _out.size();
         RowBuilder _tdBuilder = RowBuilder("mtd", true);
     };
 
-    return std::make_unique<MATRIXBuilder>();
+    return std::make_unique<EnvBuilder>();
 }
 
 const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilderFactory()
@@ -583,15 +633,6 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
     {"sqrt", makeSQRT},
     {"left", makeLeftRight},
     {"right", makeLeftRight},
-    };
-    return map;
-}
-
-const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getEnvBuilderFactory()
-{
-    static const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()> map =
-    {
-    {"matrix", makeMATRIX},
     };
     return map;
 }
