@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <math xmlns="http://www.w3.org/1998/Math/MathML">
 <mstyle displaystyle="true">
-<mrow><mi>f</mi><mo fence="true" stretchy="true">(</mo><mi>x</mi><mo fence="true" stretchy="true">)</mo></mrow></mstyle>
+<mrow><mi>f</mi><mfenced open='(' close=')'><mi>x</mi></mfenced></mrow></mstyle>
 </math>

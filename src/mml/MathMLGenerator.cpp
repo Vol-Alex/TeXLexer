@@ -4,6 +4,7 @@
 #include <limits>
 #include <memory>
 #include <unordered_map>
+#include <stack>
 
 namespace TXL
 {
@@ -11,13 +12,42 @@ namespace
 {
 const auto MAX_INDEX = std::numeric_limits<std::size_t>::max();
 
+class TokenSequence final
+{
+public:
+    TokenSequence(Lexer& lexer)
+        : _lexer(lexer)
+        , _t(lexer.next())
+    {}
+
+    const Token& top() const
+    {
+        return _t;
+    }
+
+    TokenSequence& next()
+    {
+        _t = _lexer.next();
+        return *this;
+    }
+
+    bool empty() const
+    {
+        return _t.type == END;
+    }
+
+private:
+    Lexer& _lexer;
+    Token _t;
+};
+
 class Builder
 {
 public:
     Builder() = default;
     virtual ~Builder() = default;
 
-    virtual bool add(const Token& token) = 0;
+    virtual void add(TokenSequence& sequence) = 0;
     virtual std::string take() = 0;
 };
 
@@ -89,26 +119,25 @@ std::unique_ptr<Builder> makeSUB(std::string&& firstArg);
 class RowBuilder final : public Builder
 {
 public:
-    RowBuilder(std::string&& nodeName = "mrow", const bool isInEnv = false)
+    RowBuilder(std::string&& nodeName = "mrow")
         : _nodeName(std::move(nodeName))
-        , _isInEnv(isInEnv)
     {
         _out.append("<").append(_nodeName).append(">");
         _lastTokenPos = _out.size();
     }
 
-    bool add(const Token& token) override
+    void add(TokenSequence& sequence) override
     {
-        if (_nestedBuilder)
+        const auto append = [&](const char* xmlNodeName, const std::string& content)
         {
-            if (_nestedBuilder->add(token))
-            {
-                return true;
-            }
-            _out.append(_nestedBuilder->take());
-            _nestedBuilder.reset();
-        }
+            _lastTokenPos = _out.size();
+            _out.append("<").append(xmlNodeName).append(">")
+                .append(content.data(), content.size())
+                .append("</").append(xmlNodeName).append(">");
+            sequence.next();
+        };
 
+        const auto& token = sequence.top();
         switch (token.type)
         {
             case COMMAND:
@@ -119,25 +148,45 @@ public:
                 if (symbolCmdIt != getSymbolCmdMap().end())
                 {
                     append("mi", symbolCmdIt->second);
-                    return true;
+                    return;
                 }
 
-                auto it = getBuilderFactory().find(content);
-                if (it != getBuilderFactory().end())
+                if (content == "left")
+                {
+                    _fences.push({_out.size(), sequence.next().top().content});
+                    sequence.next();
+                    return;
+                }
+
+                if (content == "right" && !_fences.empty())
+                {
+                    const auto& top = _fences.top();
+                    _out.insert(top.first, "<mfenced open='" + top.second +
+                                "' close='" + sequence.next().top().content + "'>");
+                    _out.append("</mfenced>");
+                    _fences.pop();
+                    sequence.next();
+                    return;
+                }
+
+                auto builderIt = getBuilderFactory().find(content);
+                if (builderIt != getBuilderFactory().end())
                 {
                     _lastTokenPos = _out.size();
-                    _nestedBuilder = (*it->second)();
-                    return true;
+                    auto nestedBuilder = (*builderIt->second)();
+                    nestedBuilder->add(sequence.next());
+                    _out.append(nestedBuilder->take());
+                    return;
                 }
             }
 
             case TEXT:
                 append("mi", token.content);
-                return true;
+                return;
 
             case DIGIT:
                 append("mn", token.content);
-                return true;
+                return;
 
             case SIGN:
             {
@@ -145,49 +194,46 @@ public:
                 {
                     case '^':
                     {
-                        _nestedBuilder = makeSUP(_out.substr(_lastTokenPos));
+                        auto nestedBuilder = makeSUP(_out.substr(_lastTokenPos));
                         _out.erase(_lastTokenPos);
-                        return true;
+                        nestedBuilder->add(sequence.next());
+                        _out.append(nestedBuilder->take());
+                        return;
                     }
                     case '_':
                     {
-                        _nestedBuilder = makeSUB(_out.substr(_lastTokenPos));
+                        auto nestedBuilder = makeSUB(_out.substr(_lastTokenPos));
                         _out.erase(_lastTokenPos);
-                        return true;
-                    }
-
-                    case '&':
-                    case '\\':
-                    {
-                        if (_isInEnv)
-                        {
-                            return false;
-                        }
+                        nestedBuilder->add(sequence.next());
+                        _out.append(nestedBuilder->take());
+                        return;
                     }
 
                     default:
                         break;
                 }
                 append("mo", token.content);
-                return true;
+                return;
             }
-
-            case START_GROUP:
-            case END_GROUP:
-                return true;
 
             case BEGIN_ENV:
             {
                 _lastTokenPos = _out.size();
-                _nestedBuilder = makeEnvBuilder();
-                return true;
+                auto nestedBuilder = makeEnvBuilder();
+                nestedBuilder->add(sequence.next());
+                _out.append(nestedBuilder->take());
+                return;
             }
 
+            case START_GROUP:
+            case END_GROUP:
             case END_ENV:
+                sequence.next();
+                break;
+
             case END:
                 break;
         }
-        return false;
     }
 
     std::string take() override
@@ -197,51 +243,41 @@ public:
     }
 
 private:
-    void append(const char* xmlNodeName, const std::string& content)
-    {
-        _lastTokenPos = _out.size();
-        _out.append("<").append(xmlNodeName).append(">")
-            .append(content.data(), content.size())
-            .append("</").append(xmlNodeName).append(">");
-    }
-
-private:
     std::string _nodeName;
     std::string _out;
-    std::unique_ptr<Builder> _nestedBuilder;
     std::size_t _lastTokenPos;
-    bool _isInEnv;
+    std::stack<std::pair<std::size_t, std::string>> _fences;
 };
 
 class OptArgBuilder final : public Builder
 {
 public:
-    bool add(const Token& token) override
+    void add(TokenSequence& sequence) override
     {
-        if (_groupIndex == MAX_INDEX) return false;
-
-        if (_groupIndex == 0 && token.content[0] != '[')
+        if (sequence.top().content[0] != '[')
         {
-            _groupIndex = MAX_INDEX;
-            return false;
+            return;
         }
 
-        switch (token.type)
+        for(bool finalize = false; !finalize && !sequence.empty();)
         {
-            case START_GROUP:
-                ++_groupIndex;
-                break;
+            const auto& token = sequence.top();
+            switch (token.type)
+            {
+                case START_GROUP:
+                    ++_groupIndex;
+                    break;
 
-            case END_GROUP:
-                --_groupIndex;
-                if (_groupIndex == 0 && token.content[0] == ']') _groupIndex = MAX_INDEX;
-                break;
+                case END_GROUP:
+                    --_groupIndex;
+                    if (_groupIndex == 0 && token.content[0] == ']') finalize = true;
+                    break;
 
-            default:
-                break;
+                default:
+                    break;
+            }
+            _rowBuilder.add(sequence);
         }
-
-        return _rowBuilder.add(token);
     }
 
     std::string take() override
@@ -257,35 +293,33 @@ private:
 class ArgBuilder final : public Builder
 {
 public:
-    bool add(const Token& token) override
+    void add(TokenSequence& sequence) override
     {
-        if (_groupIndex == MAX_INDEX)
+        if (sequence.top().content[0] != '{')
         {
-            return false;
+            _rowBuilder.add(sequence);
+            return;
         }
 
-        switch (token.type)
+        for(bool finalize = false; !finalize && !sequence.empty();)
         {
-            case START_GROUP:
+            const auto& token = sequence.top();
+            switch (token.type)
             {
-                ++_groupIndex;
-                if (_groupIndex == 1 && token.content[0] != '{') --_groupIndex;
-                break;
-            }
+                case START_GROUP:
+                    ++_groupIndex;
+                    break;
 
-            case END_GROUP:
-            {
-                --_groupIndex;
-                break;
-            }
+                case END_GROUP:
+                    --_groupIndex;
+                    if (_groupIndex == 0 && token.content[0] == '}') finalize = true;
+                    break;
 
-            default:
-                break;
+                default:
+                    break;
+            }
+            _rowBuilder.add(sequence);
         }
-
-        if (_groupIndex == 0) _groupIndex = MAX_INDEX;
-
-        return _rowBuilder.add(token);
     }
 
     std::string take() override
@@ -302,9 +336,10 @@ std::unique_ptr<Builder> makeFRAC()
 {
     class FRACBuilder final : public Builder
     {
-        bool add(const Token& token) override
+        void add(TokenSequence& sequence) override
         {
-            return _arg1.add(token) || _arg2.add(token);
+            _arg1.add(sequence);
+            _arg2.add(sequence);
         }
 
         std::string take() override
@@ -327,9 +362,10 @@ std::unique_ptr<Builder> makeSQRT()
 {
     class SQRTBuilder final : public Builder
     {
-        bool add(const Token& token) override
+        void add(TokenSequence& sequence) override
         {
-            return _arg1.add(token) || _arg2.add(token);
+            _arg1.add(sequence);
+            _arg2.add(sequence);
         }
 
         std::string take() override
@@ -348,56 +384,6 @@ std::unique_ptr<Builder> makeSQRT()
     return std::make_unique<SQRTBuilder>();
 }
 
-std::unique_ptr<Builder> makeLeftRight()
-{
-    class LeftRightBuilder final : public Builder
-    {
-    public:
-        bool add(const Token& token) override
-        {
-            if (!_ch.empty())
-            {
-                return false;
-            }
-
-            switch (token.type)
-            {
-                case SIGN:
-                case START_GROUP:
-                case END_GROUP:
-                {
-                    switch (token.content[0])
-                    {
-                        case '(':
-                        case ')':
-                        case '[':
-                        case ']':
-                            _ch = token.content;
-                            return true;
-
-                        default:
-                            break;
-                    }
-                }
-
-                default:
-                    break;
-            }
-            return false;
-        }
-
-        std::string take() override
-        {
-            return R"(<mo fence="true" stretchy="true">)" + _ch + "</mo>";
-        }
-
-    private:
-        std::string _ch;
-    };
-
-    return std::make_unique<LeftRightBuilder>();
-}
-
 class SUPSUBBuilder final : public Builder
 {
     enum class State
@@ -413,18 +399,11 @@ public:
         , _firstArg(std::move(firstArg))
     {}
 
-    bool add(const Token& token) override
+    void add(TokenSequence& sequence) override
     {
-        if (_arg.add(token))
-        {
-            return true;
-        }
+        _arg.add(sequence);
 
-        if (_state != State::None)
-        {
-            return false;
-        }
-
+        const auto& token = sequence.top();
         switch(token.type)
         {
             case SIGN:
@@ -432,19 +411,19 @@ public:
                 if (token.content[0] == '^' && _xmlNodeName == "msub")
                 {
                     installState(State::SubSup);
-                    return true;
+                    _arg.add(sequence.next());
                 }
                 else if (token.content[0] == '_' && _xmlNodeName == "msup")
                 {
                     installState(State::SupSub);
-                    return true;
+                    _arg.add(sequence.next());
                 }
+                break;
             }
 
             default:
                 break;
         }
-        return false;
     }
 
     std::string take() override
@@ -495,65 +474,61 @@ std::unique_ptr<Builder> makeEnvBuilder()
     class EnvBuilder final : public Builder
     {
     public:
-        bool add(const Token& token) override
+        void add(TokenSequence& sequence) override
         {
-            if (_rowBeginPos == MAX_INDEX)
-            {
-                return false;
-            }
+            _arg.add(sequence);
 
-            if (_arg.add(token))
+            for(; !sequence.empty();)
             {
-                return true;
-            }
-
-            if (_tdBuilder.add(token))
-            {
-                return true;
-            }
-
-            switch (token.type)
-            {
-                case SIGN:
+                const auto& token = sequence.top();
+                switch (token.type)
                 {
-                    switch (token.content[0])
+                    case SIGN:
                     {
-                        case '&':
+                        switch (token.content[0])
                         {
-                            _out.append(_tdBuilder.take());
-                            _tdBuilder = RowBuilder("mtd", true);
-                            return true;
-                        }
+                            case '&':
+                            {
+                                _out.append(_tdBuilder.take());
+                                _tdBuilder = RowBuilder("mtd");
+                                sequence.next();
+                                break;
+                            }
 
-                        case '\\':
+                            case '\\':
+                            {
+                                _out.insert(_rowBeginPos, "<mtr>");
+                                _out.append(_tdBuilder.take()).append("</mtr>");
+                                _rowBeginPos = _out.size();
+                                _tdBuilder = RowBuilder("mtd");
+                                sequence.next();
+                                break;
+                            }
+                            default:
+                                _tdBuilder.add(sequence);
+                                break;
+                        }
+                        break;
+                    }
+
+                    case END_ENV:
+                    {
+                        auto result = _tdBuilder.take();
+                        if (result.size() > 11)
                         {
                             _out.insert(_rowBeginPos, "<mtr>");
-                            _out.append(_tdBuilder.take()).append("</mtr>");
-                            _rowBeginPos = _out.size();
-                            _tdBuilder = RowBuilder("mtd", true);
-                            return true;
+                            _out.append(std::move(result)).append("</mtr>");
                         }
-                        default:
-                            break;
+                        sequence.next();
+                        _rowBeginPos = MAX_INDEX;
+                        return;
                     }
-                }
 
-                case END_ENV:
-                {
-                    auto result = _tdBuilder.take();
-                    if (result.size() > 11)
-                    {
-                        _out.insert(_rowBeginPos, "<mtr>");
-                        _out.append(std::move(result)).append("</mtr>");
-                    }
-                    _rowBeginPos = MAX_INDEX;
-                    return true;
+                    default:
+                        _tdBuilder.add(sequence);
+                        break;
                 }
-
-                default:
-                    break;
             }
-            return false;
         }
 
         std::string take() override
@@ -565,58 +540,46 @@ std::unique_ptr<Builder> makeEnvBuilder()
     private:
         struct Arg final
         {
-            bool add(const Token& token)
+            void add(TokenSequence& sequence)
             {
-                if (isProcessed)
+                if (sequence.top().content[0] != '{')
                 {
-                    return false;
+                    return;
                 }
 
-                switch (token.type)
+                for(bool finalize = false; !finalize && !sequence.empty(); sequence.next())
                 {
-                    case START_GROUP:
+                    const auto& token = sequence.top();
+                    switch (token.type)
                     {
-                        if (token.content[0] == '{')
-                        {
-                            data += token.content;
-                            return true;
-                        }
-                    }
+                        case START_GROUP:
+                            ++_groupIndex;
+                            break;
 
-                    case END_GROUP:
-                    {
-                        if (token.content[0] == '}')
-                        {
-                            data += token.content;
-                            isProcessed = true;
-                            return true;
-                        }
-                    }
+                        case END_GROUP:
+                            --_groupIndex;
+                            if (_groupIndex == 0 && token.content[0] == '}') finalize = true;
+                            break;
 
-                    default:
-                    {
-                        if (!data.empty())
-                        {
-                            data += token.content;
-                            return true;
-                        }
-                        break;
+                        default:
+                            break;
                     }
+                    data += token.content;
                 }
-
-                isProcessed = true;
-                return false;
             }
 
+        public:
             std::string data;
-            bool isProcessed = false;
+
+        private:
+            std::size_t _groupIndex = 0;
         };
 
     private:
         Arg _arg;
         std::string _out = std::string("<mtable>");
         std::size_t _rowBeginPos = _out.size();
-        RowBuilder _tdBuilder = RowBuilder("mtd", true);
+        RowBuilder _tdBuilder = RowBuilder("mtd");
     };
 
     return std::make_unique<EnvBuilder>();
@@ -628,8 +591,6 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
     {
     {"frac", makeFRAC},
     {"sqrt", makeSQRT},
-    {"left", makeLeftRight},
-    {"right", makeLeftRight},
     };
     return map;
 }
@@ -661,8 +622,9 @@ void MathMLGenerator::generate(Lexer& lexer)
     _out << R"(<math xmlns="http://www.w3.org/1998/Math/MathML">)" << std::endl;
     _out << R"(<mstyle displaystyle="true">)" << std::endl;
 
+    TokenSequence sequence{lexer};
     RowBuilder builder;
-    while(builder.add(lexer.next()));
+    while(!sequence.empty()) builder.add(sequence);
 
     _out << builder.take();
     _out << R"(</mstyle>)" << std::endl;
