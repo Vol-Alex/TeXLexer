@@ -106,6 +106,11 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
         {"leq", "\xE2\x89\xA4"},
         {"ge", "\xE2\x89\xA5"},
         {"geq", "\xE2\x89\xA5"},
+        {"infty", "\xE2\x88\x9E"},
+        {"infinity", "\xE2\x88\x9E"},
+        {"to", "\xE2\x86\x92"},
+        {"rightarrow", "\xE2\x86\x92"},
+        {"leftarrow", "\xE2\x86\x90"},
     };
     return map;
 }
@@ -585,12 +590,127 @@ std::unique_ptr<Builder> makeEnvBuilder()
     return std::make_unique<EnvBuilder>();
 }
 
+class SumLikeBuilder final : public Builder
+{
+public:
+    SumLikeBuilder(std::string&& cmdNode)
+        : _cmdNode(std::move(cmdNode))
+    {
+    }
+
+    void add(TokenSequence& sequence) override
+    {
+        for (bool finalize = false; !finalize && !sequence.empty();)
+        {
+            const auto& token = sequence.top();
+            switch (token.type)
+            {
+                case SIGN:
+                {
+                    switch (token.content[0])
+                    {
+                        case '^':
+                        {
+                            if (_hasSup)
+                            {
+                                finalize = true;
+                                break;
+                            }
+                            _hasSup = true;
+                            _sup.add(sequence.next());
+                            break;
+                        }
+                        case '_':
+                        {
+                            if (_hasSub)
+                            {
+                                finalize = true;
+                                break;
+                            }
+                            _hasSub = true;
+                            _sub.add(sequence.next());
+                            break;
+                        }
+
+                        default:
+                            finalize = true;
+                            break;
+                    }
+                    break;
+                }
+
+                default:
+                    finalize = true;
+                    break;
+            }
+        }
+    }
+
+    std::string take() override
+    {
+        if(_hasSub && _hasSup)
+        {
+            std::string out;
+            out.append("<munderover>")
+               .append("<mrow>")
+               .append(_cmdNode)
+               .append("</mrow>")
+               .append(_sub.take())
+               .append(_sup.take())
+               .append("</munderover>");
+            return out;
+        }
+        if(_hasSub)
+        {
+            std::string out;
+            out.append("<munder>")
+               .append("<mrow>")
+               .append(_cmdNode)
+               .append("</mrow>")
+               .append(_sub.take())
+               .append("</munder>");
+            return out;
+        }
+        if(_hasSup)
+        {
+            std::string out;
+            out.append("<mover>")
+               .append("<mrow>")
+               .append(_cmdNode)
+               .append("</mrow>")
+               .append(_sup.take())
+               .append("</mover>");
+            return out;
+        }
+        return _cmdNode;
+    }
+
+private:
+    std::string _cmdNode;
+    ArgBuilder _sub;
+    bool _hasSub = false;
+    ArgBuilder _sup;
+    bool _hasSup = false;
+};
+
+std::unique_ptr<Builder> makeSUM()
+{
+    return std::make_unique<SumLikeBuilder>("<mo>\xE2\x88\x91</mo>");
+}
+
+std::unique_ptr<Builder> makeLIM()
+{
+    return std::make_unique<SumLikeBuilder>("<mi mathvariant=\"normal\">lim</mi>");
+}
+
 const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilderFactory()
 {
     static const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()> map =
     {
     {"frac", makeFRAC},
+    {"lim", makeLIM},
     {"sqrt", makeSQRT},
+    {"sum", makeSUM},
     };
     return map;
 }
