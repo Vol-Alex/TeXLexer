@@ -51,7 +51,7 @@ public:
     virtual std::string take() = 0;
 };
 
-const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
+const std::unordered_map<std::string, std::string>& getCharCmdMap()
 {
     static const std::unordered_map<std::string, std::string> map = {
         // Greek letters
@@ -95,22 +95,30 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
         {"varpi", "\xCF\x96"},
         {"varrho", "\xCF\xB1"},
         {"varepsilon", "\xCF\xB5"},
+    };
+    return map;
+}
 
-        //Symbols
-        {"pm", "\xC2\xB1"},
+const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
+{
+    static const std::unordered_map<std::string, std::string> map = {
         {"approx", "\xE2\x89\x88"},
-        {"propto", "\xE2\x88\x9D"},
-        {"ne", "\xE2\x89\xA0"},
-        {"neq", "\xE2\x89\xA0"},
-        {"le", "\xE2\x89\xA4"},
-        {"leq", "\xE2\x89\xA4"},
+        {"cdot", "\xE2\x8B\x85"},
         {"ge", "\xE2\x89\xA5"},
         {"geq", "\xE2\x89\xA5"},
-        {"infty", "\xE2\x88\x9E"},
         {"infinity", "\xE2\x88\x9E"},
-        {"to", "\xE2\x86\x92"},
-        {"rightarrow", "\xE2\x86\x92"},
+        {"infty", "\xE2\x88\x9E"},
+        {"int","\xE2\x88\xAB"},
+        {"integral","\xE2\x88\xAB"},
+        {"le", "\xE2\x89\xA4"},
         {"leftarrow", "\xE2\x86\x90"},
+        {"leq", "\xE2\x89\xA4"},
+        {"ne", "\xE2\x89\xA0"},
+        {"neq", "\xE2\x89\xA0"},
+        {"pm", "\xC2\xB1"},
+        {"propto", "\xE2\x88\x9D"},
+        {"rightarrow", "\xE2\x86\x92"},
+        {"to", "\xE2\x86\x92"},
     };
     return map;
 }
@@ -152,9 +160,17 @@ public:
                 auto symbolCmdIt = getSymbolCmdMap().find(content);
                 if (symbolCmdIt != getSymbolCmdMap().end())
                 {
-                    append("mi", symbolCmdIt->second);
+                    append("mo", symbolCmdIt->second);
                     return;
                 }
+
+                auto chCmdIt = getCharCmdMap().find(content);
+                if (chCmdIt != getCharCmdMap().end())
+                {
+                    append("mi", chCmdIt->second);
+                    return;
+                }
+
 
                 if (content == "left")
                 {
@@ -698,9 +714,40 @@ std::unique_ptr<Builder> makeSUM()
     return std::make_unique<SumLikeBuilder>("<mo>\xE2\x88\x91</mo>");
 }
 
+std::unique_ptr<Builder> makePROD()
+{
+    return std::make_unique<SumLikeBuilder>("<mo>\xE2\x88\x8F</mo>");
+}
+
 std::unique_ptr<Builder> makeLIM()
 {
     return std::make_unique<SumLikeBuilder>("<mi mathvariant=\"normal\">lim</mi>");
+}
+
+std::unique_ptr<Builder> makeOVERSET()
+{
+    class OVERSETBuilder final : public Builder
+    {
+        void add(TokenSequence& sequence) override
+        {
+            _arg1.add(sequence);
+            _arg2.add(sequence);
+        }
+
+        std::string take() override
+        {
+            std::string out(R"(<mover>)");
+            out.append(_arg2.take());
+            out.append(_arg1.take());
+            out.append(R"(</mover>)");
+            return out;
+        }
+
+    private:
+        ArgBuilder _arg1;
+        ArgBuilder _arg2;
+    };
+    return std::make_unique<OVERSETBuilder>();
 }
 
 std::unique_ptr<Builder> makeUNDERSET()
@@ -759,7 +806,11 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {"frac", makeFRAC},
         {"lim", makeLIM},
         {"mathrm", makeMATHRM},
+        {"overset", makeOVERSET},
+        {"prod", makePROD},
+        {"product", makePROD},
         {"sqrt", makeSQRT},
+        {"stackrel", makeOVERSET},
         {"sum", makeSUM},
         {"underset", makeUNDERSET},
     };

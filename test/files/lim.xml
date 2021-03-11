@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <math xmlns="http://www.w3.org/1998/Math/MathML">
 <mstyle displaystyle="true">
-<mrow><munder><mrow><mi mathvariant="normal">lim</mi></mrow><mrow><mi>x</mi><mi>→</mi><mi>∞</mi></mrow></munder><mi>x</mi></mrow></mstyle>
+<mrow><munder><mrow><mi mathvariant="normal">lim</mi></mrow><mrow><mi>x</mi><mo>→</mo><mo>∞</mo></mrow></munder><mi>x</mi></mrow></mstyle>
 </math>
