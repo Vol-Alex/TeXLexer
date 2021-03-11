@@ -703,14 +703,65 @@ std::unique_ptr<Builder> makeLIM()
     return std::make_unique<SumLikeBuilder>("<mi mathvariant=\"normal\">lim</mi>");
 }
 
+std::unique_ptr<Builder> makeUNDERSET()
+{
+    class UNDERSETBuilder final : public Builder
+    {
+        void add(TokenSequence& sequence) override
+        {
+            _arg1.add(sequence);
+            _arg2.add(sequence);
+        }
+
+        std::string take() override
+        {
+            std::string out(R"(<munder>)");
+            out.append(_arg2.take());
+            out.append(_arg1.take());
+            out.append(R"(</munder>)");
+            return out;
+        }
+
+    private:
+        ArgBuilder _arg1;
+        ArgBuilder _arg2;
+    };
+    return std::make_unique<UNDERSETBuilder>();
+}
+
+std::unique_ptr<Builder> makeMATHRM()
+{
+    class MATHRMBuilder final : public Builder
+    {
+        void add(TokenSequence& sequence) override
+        {
+            _arg.add(sequence);
+        }
+
+        std::string take() override
+        {
+            std::string out(R"(<mstyle mathvariant="normal">)");
+            out.append(_arg.take());
+            out.append(R"(</mstyle>)");
+            return out;
+        }
+
+    private:
+        ArgBuilder _arg;
+    };
+    return std::make_unique<MATHRMBuilder>();
+}
+
 const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilderFactory()
 {
     static const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()> map =
     {
-    {"frac", makeFRAC},
-    {"lim", makeLIM},
-    {"sqrt", makeSQRT},
-    {"sum", makeSUM},
+        {"frac", makeFRAC},
+        {"lim", makeLIM},
+        {"mathrm", makeMATHRM},
+        {"sqrt", makeSQRT},
+        {"sum", makeSUM},
+        {"underset", makeUNDERSET},
     };
     return map;
 }
