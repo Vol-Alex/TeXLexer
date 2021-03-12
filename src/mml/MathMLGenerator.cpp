@@ -387,6 +387,83 @@ std::unique_ptr<Builder> makeFRAC()
     return std::make_unique<FRACBuilder>();
 }
 
+std::unique_ptr<Builder> makeGENFRAC()
+{
+    class GENFRACBuilder final : public Builder
+    {
+        void add(TokenSequence& sequence) override
+        {
+            _left.add(sequence);
+            _right.add(sequence);
+            _barThickness.add(sequence);
+            _style.add(sequence);
+            _numerator.add(sequence);
+            _denominator.add(sequence);
+        }
+
+        std::string take() override
+        {
+            std::string out;
+            out.append("<mfenced open='").append(_left.data).append("' close='").append(_right.data).append("'><mrow>")
+               .append("<mfrac linethickness='").append(_barThickness.data).append("'>")
+               .append(_numerator.take())
+               .append(_denominator.take())
+               .append("</mfrac></mrow></mfenced>");
+            return out;
+        }
+
+    private:
+        struct Arg final
+        {
+            void add(TokenSequence& sequence)
+            {
+                const auto& token = sequence.top();
+                if (token.content[0] != '{')
+                {
+                    data += token.content;
+                    sequence.next();
+                    return;
+                }
+
+                for(bool finalize = false; !finalize && !sequence.empty(); sequence.next())
+                {
+                    const auto& token = sequence.top();
+                    switch (token.type)
+                    {
+                        case START_GROUP:
+                            ++_groupIndex;
+                            break;
+
+                        case END_GROUP:
+                            --_groupIndex;
+                            if (_groupIndex == 0 && token.content[0] == '}') finalize = true;
+                            break;
+
+                        default:
+                            data += token.content;
+                            break;
+                    }
+                }
+            }
+
+        public:
+            std::string data;
+
+        private:
+            std::size_t _groupIndex = 0;
+        };
+
+    private:
+        Arg _left;
+        Arg _right;
+        Arg _barThickness;
+        Arg _style;
+        ArgBuilder _numerator;
+        ArgBuilder _denominator;
+    };
+    return std::make_unique<GENFRACBuilder>();
+}
+
 std::unique_ptr<Builder> makeSQRT()
 {
     class SQRTBuilder final : public Builder
@@ -800,6 +877,7 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
     static const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()> map =
     {
         {"frac", makeFRAC},
+        {"genfrac", makeGENFRAC},
         {"lim", makeLIM},
         {"mathrm", makeMATHRM},
         {"overset", makeOVERSET},
