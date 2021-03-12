@@ -182,9 +182,10 @@ public:
                 if (content == "right" && !_fences.empty())
                 {
                     const auto& top = _fences.top();
+                    _lastTokenPos = top.first;
                     _out.insert(top.first, "<mfenced open='" + top.second +
-                                "' close='" + sequence.next().top().content + "'>");
-                    _out.append("</mfenced>");
+                                "' close='" + sequence.next().top().content + "'><mrow>");
+                    _out.append("</mrow></mfenced>");
                     _fences.pop();
                     sequence.next();
                     return;
@@ -229,6 +230,13 @@ public:
                         _out.append(nestedBuilder->take());
                         return;
                     }
+                    case '<':
+                        append("mo", "&lt;");
+                        return;
+
+                    case '>':
+                        append("mo", "&gt;");
+                        return;
 
                     default:
                         break;
@@ -724,56 +732,44 @@ std::unique_ptr<Builder> makeLIM()
     return std::make_unique<SumLikeBuilder>("<mi mathvariant=\"normal\">lim</mi>");
 }
 
+class ReverseTwoArgBuilder final : public Builder
+{
+public:
+    ReverseTwoArgBuilder(std::string&& nodeName)
+        : _nodeName(std::move(nodeName))
+    {
+    }
+
+    void add(TokenSequence& sequence) override
+    {
+        _arg1.add(sequence);
+        _arg2.add(sequence);
+    }
+
+    std::string take() override
+    {
+        std::string out;
+        out.append("<").append(_nodeName).append(">")
+           .append(_arg2.take())
+           .append(_arg1.take())
+           .append("</").append(_nodeName).append(">");
+        return out;
+    }
+
+private:
+    std::string _nodeName;
+    ArgBuilder _arg1;
+    ArgBuilder _arg2;
+};
+
 std::unique_ptr<Builder> makeOVERSET()
 {
-    class OVERSETBuilder final : public Builder
-    {
-        void add(TokenSequence& sequence) override
-        {
-            _arg1.add(sequence);
-            _arg2.add(sequence);
-        }
-
-        std::string take() override
-        {
-            std::string out(R"(<mover>)");
-            out.append(_arg2.take());
-            out.append(_arg1.take());
-            out.append(R"(</mover>)");
-            return out;
-        }
-
-    private:
-        ArgBuilder _arg1;
-        ArgBuilder _arg2;
-    };
-    return std::make_unique<OVERSETBuilder>();
+    return std::make_unique<ReverseTwoArgBuilder>("mover");
 }
 
 std::unique_ptr<Builder> makeUNDERSET()
 {
-    class UNDERSETBuilder final : public Builder
-    {
-        void add(TokenSequence& sequence) override
-        {
-            _arg1.add(sequence);
-            _arg2.add(sequence);
-        }
-
-        std::string take() override
-        {
-            std::string out(R"(<munder>)");
-            out.append(_arg2.take());
-            out.append(_arg1.take());
-            out.append(R"(</munder>)");
-            return out;
-        }
-
-    private:
-        ArgBuilder _arg1;
-        ArgBuilder _arg2;
-    };
-    return std::make_unique<UNDERSETBuilder>();
+    return std::make_unique<ReverseTwoArgBuilder>("munder");
 }
 
 std::unique_ptr<Builder> makeMATHRM()
@@ -788,8 +784,8 @@ std::unique_ptr<Builder> makeMATHRM()
         std::string take() override
         {
             std::string out(R"(<mstyle mathvariant="normal">)");
-            out.append(_arg.take());
-            out.append(R"(</mstyle>)");
+            out.append(_arg.take())
+               .append(R"(</mstyle>)");
             return out;
         }
 
@@ -840,16 +836,16 @@ void MathMLGenerator::generateFromIN()
 
 void MathMLGenerator::generate(Lexer& lexer)
 {
-    _out << R"(<?xml version="1.0" encoding="UTF-8"?>)" << std::endl;
-    _out << R"(<math xmlns="http://www.w3.org/1998/Math/MathML">)" << std::endl;
-    _out << R"(<mstyle displaystyle="true">)" << std::endl;
+    _out << R"(<?xml version="1.0" encoding="UTF-8"?>)" << std::endl
+         << R"(<math xmlns="http://www.w3.org/1998/Math/MathML">)" << std::endl
+         << R"(<mstyle displaystyle="true">)" << std::endl;
 
     TokenSequence sequence{lexer};
     RowBuilder builder;
     while(!sequence.empty()) builder.add(sequence);
 
-    _out << builder.take();
-    _out << R"(</mstyle>)" << std::endl;
-    _out << R"(</math>)" << std::endl;
+    _out << builder.take()
+         << R"(</mstyle>)" << std::endl
+         << R"(</math>)" << std::endl;
 }
 } // namespace TXL

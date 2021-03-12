@@ -38,5 +38,10 @@ INSTANTIATE_TEST_SUITE_P(
         MathMLGeneratorTestSuite,
         ::testing::Values(
 ${TEX_FILES_TO_CONFIG}
-        ));
+        ),
+        [](const testing::TestParamInfo<MathMLGeneratorTestSuite::ParamType>& info)
+        {
+            const auto pos = info.param.rfind('/') + 1;
+            return info.param.substr(pos, info.param.size() - pos - 4);
+        });
 } // namespace TXL
