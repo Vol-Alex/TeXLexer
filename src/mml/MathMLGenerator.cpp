@@ -96,6 +96,8 @@ const std::unordered_map<std::string, std::string>& getCharCmdMap()
         {"varrho", "\xCF\xB1"},
         {"varepsilon", "\xCF\xB5"},
 
+        {"dots", "\xE2\x80\xA6"},
+        {"ldots", "\xE2\x80\xA6"},
         {"vdots", "\xE2\x8B\xAE"},
         {"cdots", "\xE2\x8B\xAF"},
         {"ddots", "\xE2\x8B\xB1"},
@@ -877,14 +879,60 @@ std::unique_ptr<Builder> makeMATHRM()
     return std::make_unique<MATHRMBuilder>();
 }
 
+std::unique_ptr<Builder> makeOVERLINE()
+{
+    class OVERLINEBuilder final : public Builder
+    {
+        void add(TokenSequence& sequence) override
+        {
+            _arg.add(sequence);
+        }
+
+        std::string take() override
+        {
+            std::string out(R"(<mover>)");
+            out.append(_arg.take())
+               .append("<mo>\xC2\xAF</mo></mover>");
+            return out;
+        }
+
+    private:
+        ArgBuilder _arg;
+    };
+    return std::make_unique<OVERLINEBuilder>();
+}
+
+std::unique_ptr<Builder> makeHSPACE()
+{
+    class HSPACEBuilder final : public Builder
+    {
+        void add(TokenSequence& sequence) override
+        {
+            _arg.add(sequence);
+        }
+
+        std::string take() override
+        {
+            return "<mo>\xE2\x80\x89</mo>";
+        }
+
+    private:
+        ArgBuilder _arg;
+    };
+    return std::make_unique<HSPACEBuilder>();
+}
+
 const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilderFactory()
 {
     static const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()> map =
     {
+        {"closure", makeOVERLINE},
         {"frac", makeFRAC},
         {"genfrac", makeGENFRAC},
+        {"hspace", makeHSPACE},
         {"lim", makeLIM},
         {"mathrm", makeMATHRM},
+        {"overline", makeOVERLINE},
         {"overset", makeOVERSET},
         {"prod", makePROD},
         {"product", makePROD},
@@ -892,6 +940,7 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {"stackrel", makeOVERSET},
         {"sum", makeSUM},
         {"underset", makeUNDERSET},
+        {"widebar", makeOVERLINE},
     };
     return map;
 }
