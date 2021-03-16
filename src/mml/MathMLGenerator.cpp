@@ -70,7 +70,7 @@ const std::unordered_map<std::string, std::string>& getCharCmdMap()
         {"kappa", "\xCE\xBA"},
         {"Lambda", "\xCE\x9B"},
         {"lambda", "\xCE\xBB"},
-        {"mu", "\xCE\xBС"},
+        {"mu", "\xCE\xBC"},
         {"nu", "\xCE\xBD"},
         {"Xi", "\xCE\x9E"},
         {"xi", "\xCE\xBE"},
@@ -95,6 +95,11 @@ const std::unordered_map<std::string, std::string>& getCharCmdMap()
         {"varpi", "\xCF\x96"},
         {"varrho", "\xCF\xB1"},
         {"varepsilon", "\xCF\xB5"},
+
+        {"vdots", "\xE2\x8B\xAE"},
+        {"cdots", "\xE2\x8B\xAF"},
+        {"ddots", "\xE2\x8B\xB1"},
+        {"udots", "\xE2\x8B\xB0"},
     };
     return map;
 }
