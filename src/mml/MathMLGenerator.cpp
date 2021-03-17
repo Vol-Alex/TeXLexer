@@ -93,6 +93,7 @@ const std::unordered_map<std::string, std::string>& getCharCmdMap()
         {"vartheta", "\xCF\x91"},
         {"varphi", "\xCF\x95"},
         {"varpi", "\xCF\x96"},
+        {"varkappa", "\xCF\xB0"},
         {"varrho", "\xCF\xB1"},
         {"varepsilon", "\xCF\xB5"},
 
@@ -111,8 +112,14 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
     static const std::unordered_map<std::string, std::string> map = {
         {"approx", "\xE2\x89\x88"},
         {"cdot", "\xE2\x8B\x85"},
+        {"conint", "\xE2\x88\xAE"},
+        {"contourintegral", "\xE2\x88\xAE"},
+        {"doubleintegral", "\xE2\x88\xAC"},
         {"ge", "\xE2\x89\xA5"},
         {"geq", "\xE2\x89\xA5"},
+        {"iiiint", "\xE2\xA8\x8C"},
+        {"iiint", "\xE2\x88\xAD"},
+        {"iint", "\xE2\x88\xAC"},
         {"infinity", "\xE2\x88\x9E"},
         {"infty", "\xE2\x88\x9E"},
         {"int","\xE2\x88\xAB"},
@@ -122,10 +129,16 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
         {"leq", "\xE2\x89\xA4"},
         {"ne", "\xE2\x89\xA0"},
         {"neq", "\xE2\x89\xA0"},
+        {"oiiint", "\xE2\x88\xB0"},
+        {"oiint", "\xE2\x88\xAF"},
+        {"oint", "\xE2\x88\xAE"},
         {"pm", "\xC2\xB1"},
         {"propto", "\xE2\x88\x9D"},
+        {"quadrupleintegral", "\xE2\xA8\x8C"},
         {"rightarrow", "\xE2\x86\x92"},
         {"to", "\xE2\x86\x92"},
+        {"triangle", "\xE2\x96\xB3"},
+        {"tripleintegral", "\xE2\x88\xAD"},
     };
     return map;
 }
@@ -469,6 +482,32 @@ std::unique_ptr<Builder> makeGENFRAC()
         ArgBuilder _denominator;
     };
     return std::make_unique<GENFRACBuilder>();
+}
+
+std::unique_ptr<Builder> makeBINOM()
+{
+    class BINOMBuilder final : public Builder
+    {
+        void add(TokenSequence& sequence) override
+        {
+            _numerator.add(sequence);
+            _denominator.add(sequence);
+        }
+
+        std::string take() override
+        {
+            std::string out;
+            out.append("<mfenced open='(' close=')'><mrow><mfrac linethickness='0pt'>")
+               .append(_numerator.take())
+               .append(_denominator.take())
+               .append("</mfrac></mrow></mfenced>");
+            return out;
+        }
+    private:
+        ArgBuilder _numerator;
+        ArgBuilder _denominator;
+    };
+    return std::make_unique<BINOMBuilder>();
 }
 
 std::unique_ptr<Builder> makeSQRT()
@@ -926,6 +965,7 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
 {
     static const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()> map =
     {
+        {"binom", makeBINOM},
         {"closure", makeOVERLINE},
         {"frac", makeFRAC},
         {"genfrac", makeGENFRAC},
