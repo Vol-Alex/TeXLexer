@@ -23,6 +23,7 @@
 "]"     {return END_GROUP;}
 
 "&" |
+"'" |
 "(" |
 ")" |
 "^" |
@@ -67,8 +68,8 @@ EOF     {return END;}
 
 <_TEXT_>
 {
-[0-9]+                                    {BEGIN(INITIAL); return DIGIT;}
-[^<>&\$\\{}\(\)\[\]\^\_\+\-\= \t\n0-9]+    {BEGIN(INITIAL); return TEXT;}
+[0-9]+                                      {BEGIN(INITIAL); return DIGIT;}
+[^'<>&\$\\{}\(\)\[\]\^\_\+\-\= \t\n0-9]+    {BEGIN(INITIAL); return TEXT;}
 }
 
 %%

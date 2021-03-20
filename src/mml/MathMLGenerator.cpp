@@ -110,6 +110,7 @@ const std::unordered_map<std::string, std::string>& getCharCmdMap()
 const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
 {
     static const std::unordered_map<std::string, std::string> map = {
+        {"Del", "\xE2\x88\x87"},
         {"approx", "\xE2\x89\x88"},
         {"cdot", "\xE2\x8B\x85"},
         {"conint", "\xE2\x88\xAE"},
@@ -117,6 +118,7 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
         {"doubleintegral", "\xE2\x88\xAC"},
         {"ge", "\xE2\x89\xA5"},
         {"geq", "\xE2\x89\xA5"},
+        {"gt", "&gt;"},
         {"iiiint", "\xE2\xA8\x8C"},
         {"iiint", "\xE2\x88\xAD"},
         {"iint", "\xE2\x88\xAC"},
@@ -127,12 +129,15 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
         {"le", "\xE2\x89\xA4"},
         {"leftarrow", "\xE2\x86\x90"},
         {"leq", "\xE2\x89\xA4"},
+        {"lt", "&lt;"},
+        {"nabla", "\xE2\x88\x87"},
         {"ne", "\xE2\x89\xA0"},
         {"neq", "\xE2\x89\xA0"},
         {"oiiint", "\xE2\x88\xB0"},
         {"oiint", "\xE2\x88\xAF"},
         {"oint", "\xE2\x88\xAE"},
         {"pm", "\xC2\xB1"},
+        {"prime", "\xE2\x80\xB2"},
         {"propto", "\xE2\x88\x9D"},
         {"quadrupleintegral", "\xE2\xA8\x8C"},
         {"rightarrow", "\xE2\x86\x92"},
@@ -621,6 +626,110 @@ std::unique_ptr<Builder> makeSUB(std::string&& firstArg)
     return std::make_unique<SUPSUBBuilder>("msub",  std::move(firstArg));
 }
 
+class TableBuilder final : public Builder
+{
+public:
+    void add(TokenSequence& sequence) override
+    {
+        const auto& token = sequence.top();
+        switch (token.type)
+        {
+            case SIGN:
+            {
+                switch (token.content[0])
+                {
+                    case '&':
+                    {
+                        _out.append(_tdBuilder.take());
+                        _tdBuilder = RowBuilder("mtd");
+                        sequence.next();
+                        break;
+                    }
+
+                    case '\\':
+                    {
+                        _out.insert(_rowBeginPos, "<mtr>");
+                        _out.append(_tdBuilder.take()).append("</mtr>");
+                        _rowBeginPos = _out.size();
+                        _tdBuilder = RowBuilder("mtd");
+                        sequence.next();
+                        break;
+                    }
+                    default:
+                        _tdBuilder.add(sequence);
+                        break;
+                }
+                break;
+            }
+
+            default:
+                _tdBuilder.add(sequence);
+                break;
+        }
+    }
+
+    std::string take() override
+    {
+        auto result = _tdBuilder.take();
+        if (result.size() > 11)
+        {
+            _out.insert(_rowBeginPos, "<mtr>");
+            _out.append(std::move(result)).append("</mtr>");
+        }
+        _rowBeginPos = MAX_INDEX;
+        _out.append("</mtable>");
+
+        return std::move(_out);
+    }
+
+private:
+    std::string _out = std::string("<mtable>");
+    std::size_t _rowBeginPos = _out.size();
+    RowBuilder _tdBuilder = RowBuilder("mtd");
+};
+
+class ArgTableBuilder final : public Builder
+{
+public:
+    void add(TokenSequence& sequence) override
+    {
+        if (sequence.top().content[0] != '{')
+        {
+            _tableBuilder.add(sequence);
+            return;
+        }
+
+        auto groupIndex = 0;
+        for(bool finalize = false; !finalize && !sequence.empty();)
+        {
+            const auto& token = sequence.top();
+            switch (token.type)
+            {
+                case START_GROUP:
+                    ++groupIndex;
+                    break;
+
+                case END_GROUP:
+                    --groupIndex;
+                    if (groupIndex == 0 && token.content[0] == '}') finalize = true;
+                    break;
+
+                default:
+                    break;
+            }
+            _tableBuilder.add(sequence);
+        }
+    }
+
+    std::string take() override
+    {
+        return _tableBuilder.take();
+    }
+
+private:
+    TableBuilder _tableBuilder;
+};
+
 std::unique_ptr<Builder> makeEnvBuilder()
 {
     class EnvBuilder final : public Builder
@@ -635,49 +744,14 @@ std::unique_ptr<Builder> makeEnvBuilder()
                 const auto& token = sequence.top();
                 switch (token.type)
                 {
-                    case SIGN:
-                    {
-                        switch (token.content[0])
-                        {
-                            case '&':
-                            {
-                                _out.append(_tdBuilder.take());
-                                _tdBuilder = RowBuilder("mtd");
-                                sequence.next();
-                                break;
-                            }
-
-                            case '\\':
-                            {
-                                _out.insert(_rowBeginPos, "<mtr>");
-                                _out.append(_tdBuilder.take()).append("</mtr>");
-                                _rowBeginPos = _out.size();
-                                _tdBuilder = RowBuilder("mtd");
-                                sequence.next();
-                                break;
-                            }
-                            default:
-                                _tdBuilder.add(sequence);
-                                break;
-                        }
-                        break;
-                    }
-
                     case END_ENV:
                     {
-                        auto result = _tdBuilder.take();
-                        if (result.size() > 11)
-                        {
-                            _out.insert(_rowBeginPos, "<mtr>");
-                            _out.append(std::move(result)).append("</mtr>");
-                        }
                         sequence.next();
-                        _rowBeginPos = MAX_INDEX;
                         return;
                     }
 
                     default:
-                        _tdBuilder.add(sequence);
+                        _tableBuilder.add(sequence);
                         break;
                 }
             }
@@ -685,8 +759,7 @@ std::unique_ptr<Builder> makeEnvBuilder()
 
         std::string take() override
         {
-            _out.append("</mtable>");
-            return std::move(_out);
+            return _tableBuilder.take();
         }
 
     private:
@@ -729,9 +802,7 @@ std::unique_ptr<Builder> makeEnvBuilder()
 
     private:
         Arg _arg;
-        std::string _out = std::string("<mtable>");
-        std::size_t _rowBeginPos = _out.size();
-        RowBuilder _tdBuilder = RowBuilder("mtd");
+        TableBuilder _tableBuilder;
     };
 
     return std::make_unique<EnvBuilder>();
@@ -961,11 +1032,32 @@ std::unique_ptr<Builder> makeHSPACE()
     return std::make_unique<HSPACEBuilder>();
 }
 
+std::unique_ptr<Builder> makeSUBSTACK()
+{
+    class SUBSTACKBuilder final : public Builder
+    {
+        void add(TokenSequence& sequence) override
+        {
+            _arg.add(sequence);
+        }
+
+        std::string take() override
+        {
+            return _arg.take();
+        }
+
+    private:
+        ArgTableBuilder _arg;
+    };
+    return std::make_unique<SUBSTACKBuilder>();
+}
+
 const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilderFactory()
 {
     static const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()> map =
     {
         {"binom", makeBINOM},
+        {"cfrac", makeFRAC},
         {"closure", makeOVERLINE},
         {"frac", makeFRAC},
         {"genfrac", makeGENFRAC},
@@ -978,6 +1070,7 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {"product", makePROD},
         {"sqrt", makeSQRT},
         {"stackrel", makeOVERSET},
+        {"substack", makeSUBSTACK},
         {"sum", makeSUM},
         {"underset", makeUNDERSET},
         {"widebar", makeOVERLINE},

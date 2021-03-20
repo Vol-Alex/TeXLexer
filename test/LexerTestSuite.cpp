@@ -52,4 +52,14 @@ TEST(LexerTestSuite, parseEnvironment)
     EXPECT_EQ((Token{BEGIN_ENV, "matrix"}), lexer.next());
     EXPECT_EQ((Token{END_ENV, "matrix"}), lexer.next());
 }
+
+TEST(LexerTestSuite, parsePrime)
+{
+    const std::string str = "'text'";
+    Lexer lexer(str);
+
+    EXPECT_EQ((Token{SIGN, "'"}), lexer.next());
+    EXPECT_EQ((Token{TEXT, "text"}), lexer.next());
+    EXPECT_EQ((Token{SIGN, "'"}), lexer.next());
+}
 } // namespace TXL
