@@ -150,9 +150,14 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
 
 const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilderFactory();
 
+enum class SubSupType
+{
+    Limits,
+    NoLimits
+};
+
 std::unique_ptr<Builder> makeEnvBuilder();
-std::unique_ptr<Builder> makeSUP(std::string&& firstArg);
-std::unique_ptr<Builder> makeSUB(std::string&& firstArg);
+std::unique_ptr<Builder> makeSubSup(std::string&& firstArg, SubSupType type);
 
 class RowBuilder final : public Builder
 {
@@ -240,18 +245,11 @@ public:
                 switch (token.content[0])
                 {
                     case '^':
-                    {
-                        auto nestedBuilder = makeSUP(_out.substr(_lastTokenPos));
-                        _out.erase(_lastTokenPos);
-                        nestedBuilder->add(sequence.next());
-                        _out.append(nestedBuilder->take());
-                        return;
-                    }
                     case '_':
                     {
-                        auto nestedBuilder = makeSUB(_out.substr(_lastTokenPos));
+                        auto nestedBuilder = makeSubSup(_out.substr(_lastTokenPos), SubSupType::NoLimits);
                         _out.erase(_lastTokenPos);
-                        nestedBuilder->add(sequence.next());
+                        nestedBuilder->add(sequence);
                         _out.append(nestedBuilder->take());
                         return;
                     }
@@ -541,89 +539,133 @@ std::unique_ptr<Builder> makeSQRT()
     return std::make_unique<SQRTBuilder>();
 }
 
-class SUPSUBBuilder final : public Builder
+class SubSupBuilder final : public Builder
 {
-    enum class State
-    {
-        None,
-        SupSub,
-        SubSup,
-    };
 public:
-    SUPSUBBuilder(std::string&& xmlNodeName,
-                  std::string&& firstArg)
-        : _xmlNodeName(std::move(xmlNodeName))
-        , _firstArg(std::move(firstArg))
-    {}
+    SubSupBuilder(std::string&& cmdNode, SubSupType type)
+        : _cmdNode(std::move(cmdNode))
+        , _type(type)
+    {
+    }
 
     void add(TokenSequence& sequence) override
     {
-        _arg.add(sequence);
-
-        const auto& token = sequence.top();
-        switch(token.type)
+        for (bool finalize = false; !finalize && !sequence.empty();)
         {
-            case SIGN:
+            const auto& token = sequence.top();
+            switch (token.type)
             {
-                if (token.content[0] == '^' && _xmlNodeName == "msub")
+                case SIGN:
                 {
-                    installState(State::SubSup);
-                    _arg.add(sequence.next());
-                }
-                else if (token.content[0] == '_' && _xmlNodeName == "msup")
-                {
-                    installState(State::SupSub);
-                    _arg.add(sequence.next());
-                }
-                break;
-            }
+                    switch (token.content[0])
+                    {
+                        case '^':
+                        {
+                            if (_hasSup)
+                            {
+                                finalize = true;
+                                break;
+                            }
+                            _hasSup = true;
+                            _sup.add(sequence.next());
+                            break;
+                        }
+                        case '_':
+                        {
+                            if (_hasSub)
+                            {
+                                finalize = true;
+                                break;
+                            }
+                            _hasSub = true;
+                            _sub.add(sequence.next());
+                            break;
+                        }
 
-            default:
-                break;
+                        default:
+                            finalize = true;
+                            break;
+                    }
+                    break;
+                }
+
+                case COMMAND:
+                {
+                    const auto& content = token.content;
+
+                    if (content == "limits")
+                    {
+                        _type = SubSupType::Limits;
+                        sequence.next();
+                        break;
+                    }
+
+                    if (content == "nolimits")
+                    {
+                        _type = SubSupType::NoLimits;
+                        sequence.next();
+                        break;
+                    }
+                }
+
+                default:
+                    finalize = true;
+                    break;
+            }
         }
     }
 
     std::string take() override
     {
-        _firstArg.insert(0, "<" + _xmlNodeName + "><mrow>");
-        _firstArg.append("</mrow>");
-
-        if (_state == State::SubSup) _firstArg += _additionalArg;
-
-        _firstArg += _arg.take();
-
-        if (_state == State::SupSub) _firstArg += _additionalArg;
-
-        _firstArg.append("</").append(_xmlNodeName).append(">");
-        return std::move(_firstArg);
+        if(_hasSub && _hasSup)
+        {
+            std::string out;
+            out.append(_type == SubSupType::Limits ? "<munderover>" : "<msubsup>")
+                    .append("<mrow>")
+                    .append(_cmdNode)
+                    .append("</mrow>")
+                    .append(_sub.take())
+                    .append(_sup.take())
+                    .append(_type == SubSupType::Limits ? "</munderover>" : "</msubsup>");
+            return out;
+        }
+        if(_hasSub)
+        {
+            std::string out;
+            out.append(_type == SubSupType::Limits ? "<munder>" : "<msub>")
+                    .append("<mrow>")
+                    .append(_cmdNode)
+                    .append("</mrow>")
+                    .append(_sub.take())
+                    .append(_type == SubSupType::Limits ? "</munder>" : "</msub>");
+            return out;
+        }
+        if(_hasSup)
+        {
+            std::string out;
+            out.append(_type == SubSupType::Limits ? "<mover>" : "<msup>")
+                    .append("<mrow>")
+                    .append(_cmdNode)
+                    .append("</mrow>")
+                    .append(_sup.take())
+                    .append(_type == SubSupType::Limits ? "</mover>" : "</msup>");
+            return out;
+        }
+        return _cmdNode;
     }
 
 private:
-    void installState(const State state)
-    {
-        _additionalArg = _arg.take();
-        _arg = ArgBuilder();
-        _state = state;
-        _xmlNodeName = "msubsup";
-    }
-
-private:
-    std::string _xmlNodeName;
-    State _state = State::None;
-
-    std::string _firstArg;
-    std::string _additionalArg;
-    ArgBuilder _arg;
+    SubSupType _type;
+    std::string _cmdNode;
+    ArgBuilder _sub;
+    bool _hasSub = false;
+    ArgBuilder _sup;
+    bool _hasSup = false;
 };
 
-std::unique_ptr<Builder> makeSUP(std::string&& firstArg)
+std::unique_ptr<Builder> makeSubSup(std::string&& firstArg, SubSupType type)
 {
-    return std::make_unique<SUPSUBBuilder>("msup", std::move(firstArg));
-}
-
-std::unique_ptr<Builder> makeSUB(std::string&& firstArg)
-{
-    return std::make_unique<SUPSUBBuilder>("msub",  std::move(firstArg));
+    return std::make_unique<SubSupBuilder>(std::move(firstArg), type);
 }
 
 class TableBuilder final : public Builder
@@ -808,122 +850,19 @@ std::unique_ptr<Builder> makeEnvBuilder()
     return std::make_unique<EnvBuilder>();
 }
 
-class SumLikeBuilder final : public Builder
-{
-public:
-    SumLikeBuilder(std::string&& cmdNode)
-        : _cmdNode(std::move(cmdNode))
-    {
-    }
-
-    void add(TokenSequence& sequence) override
-    {
-        for (bool finalize = false; !finalize && !sequence.empty();)
-        {
-            const auto& token = sequence.top();
-            switch (token.type)
-            {
-                case SIGN:
-                {
-                    switch (token.content[0])
-                    {
-                        case '^':
-                        {
-                            if (_hasSup)
-                            {
-                                finalize = true;
-                                break;
-                            }
-                            _hasSup = true;
-                            _sup.add(sequence.next());
-                            break;
-                        }
-                        case '_':
-                        {
-                            if (_hasSub)
-                            {
-                                finalize = true;
-                                break;
-                            }
-                            _hasSub = true;
-                            _sub.add(sequence.next());
-                            break;
-                        }
-
-                        default:
-                            finalize = true;
-                            break;
-                    }
-                    break;
-                }
-
-                default:
-                    finalize = true;
-                    break;
-            }
-        }
-    }
-
-    std::string take() override
-    {
-        if(_hasSub && _hasSup)
-        {
-            std::string out;
-            out.append("<munderover>")
-               .append("<mrow>")
-               .append(_cmdNode)
-               .append("</mrow>")
-               .append(_sub.take())
-               .append(_sup.take())
-               .append("</munderover>");
-            return out;
-        }
-        if(_hasSub)
-        {
-            std::string out;
-            out.append("<munder>")
-               .append("<mrow>")
-               .append(_cmdNode)
-               .append("</mrow>")
-               .append(_sub.take())
-               .append("</munder>");
-            return out;
-        }
-        if(_hasSup)
-        {
-            std::string out;
-            out.append("<mover>")
-               .append("<mrow>")
-               .append(_cmdNode)
-               .append("</mrow>")
-               .append(_sup.take())
-               .append("</mover>");
-            return out;
-        }
-        return _cmdNode;
-    }
-
-private:
-    std::string _cmdNode;
-    ArgBuilder _sub;
-    bool _hasSub = false;
-    ArgBuilder _sup;
-    bool _hasSup = false;
-};
-
 std::unique_ptr<Builder> makeSUM()
 {
-    return std::make_unique<SumLikeBuilder>("<mo>\xE2\x88\x91</mo>");
+    return std::make_unique<SubSupBuilder>("<mo>\xE2\x88\x91</mo>", SubSupType::Limits);
 }
 
 std::unique_ptr<Builder> makePROD()
 {
-    return std::make_unique<SumLikeBuilder>("<mo>\xE2\x88\x8F</mo>");
+    return std::make_unique<SubSupBuilder>("<mo>\xE2\x88\x8F</mo>", SubSupType::Limits);
 }
 
 std::unique_ptr<Builder> makeLIM()
 {
-    return std::make_unique<SumLikeBuilder>("<mi mathvariant=\"normal\">lim</mi>");
+    return std::make_unique<SubSupBuilder>("<mi mathvariant=\"normal\">lim</mi>", SubSupType::Limits);
 }
 
 class ReverseTwoArgBuilder final : public Builder
