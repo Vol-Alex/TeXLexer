@@ -112,16 +112,21 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
     static const std::unordered_map<std::string, std::string> map = {
         {"Del", "\xE2\x88\x87"},
         {"approx", "\xE2\x89\x88"},
+        {"cap", "\xE2\x88\xA9"},
         {"cdot", "\xE2\x8B\x85"},
+        {"cong", "\xE2\x89\x85"},
         {"conint", "\xE2\x88\xAE"},
         {"contourintegral", "\xE2\x88\xAE"},
+        {"cup", "\xE2\x88\xAA"},
         {"doubleintegral", "\xE2\x88\xAC"},
+        {"equiv", "\xE2\x89\xA1"},
         {"ge", "\xE2\x89\xA5"},
         {"geq", "\xE2\x89\xA5"},
         {"gt", "&gt;"},
         {"iiiint", "\xE2\xA8\x8C"},
         {"iiint", "\xE2\x88\xAD"},
         {"iint", "\xE2\x88\xAC"},
+        {"in", "\xE2\x88\x8A"},
         {"infinity", "\xE2\x88\x9E"},
         {"infty", "\xE2\x88\x9E"},
         {"int","\xE2\x88\xAB"},
@@ -133,17 +138,32 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
         {"nabla", "\xE2\x88\x87"},
         {"ne", "\xE2\x89\xA0"},
         {"neq", "\xE2\x89\xA0"},
+        {"notin", "\xE2\x88\x89"},
+        {"nparallel", "\xE2\x88\xA5"},
+        {"nsubseteq", "\xE2\x8A\x88"},
         {"oiiint", "\xE2\x88\xB0"},
         {"oiint", "\xE2\x88\xAF"},
         {"oint", "\xE2\x88\xAE"},
+        {"oplus", "\xE2\x8A\x95"},
+        {"otimes", "\xE2\x8A\x97"},
+        {"parallel", "\xE2\x88\xA5"},
+        {"perp", "\xE2\x8A\xA5"},
         {"pm", "\xC2\xB1"},
         {"prime", "\xE2\x80\xB2"},
         {"propto", "\xE2\x88\x9D"},
         {"quadrupleintegral", "\xE2\xA8\x8C"},
         {"rightarrow", "\xE2\x86\x92"},
+        {"sim", "\xE2\x88\xBC"},
+        {"simeq", "\xE2\x89\x83"},
+        {"subset", "\xE2\x8A\x82"},
+        {"subseteq","\xE2\x8A\x86"},
+        {"supset", "\xE2\x8A\x83"},
+        {"supseteq", "\xE2\x8A\x87"},
+        {"times", "\xC3\x97"},
         {"to", "\xE2\x86\x92"},
         {"triangle", "\xE2\x96\xB3"},
         {"tripleintegral", "\xE2\x88\xAD"},
+        {"div", "\xC3\xB7"},
     };
     return map;
 }
@@ -384,6 +404,67 @@ private:
     RowBuilder _rowBuilder;
 };
 
+class TextArgBuilder final : public Builder
+{
+public:
+    explicit TextArgBuilder(bool preserveWhitespace = false)
+        : _preserveWhitespace(preserveWhitespace)
+    {
+    }
+
+    void add(TokenSequence& sequence) override
+    {
+        if (sequence.top().content[0] != '{')
+        {
+            _out = sequence.top().content;
+            sequence.next();
+            return;
+        }
+
+        std::size_t groupIndex = 1;
+        sequence.next();
+        for(bool finalize = false; !finalize && !sequence.empty(); sequence.next())
+        {
+            const auto& token = sequence.top();
+            switch (token.type)
+            {
+                case START_GROUP:
+                    ++groupIndex;
+                    break;
+
+                case END_GROUP:
+                    --groupIndex;
+                    if (groupIndex == 0 && token.content[0] == '}') finalize = true;
+                    break;
+
+                default:
+                    break;
+            }
+
+            if (!finalize)
+            {
+                if (_preserveWhitespace && !_out.empty()) _out.append(" ");
+                _out.append(token.content);
+            }
+        }
+    }
+
+    std::string takeContent()
+    {
+        return std::move(_out);
+    }
+
+    std::string take() override
+    {
+        return "<mtext>" + _out + "</mtext>";
+    }
+
+private:
+    std::string _out;
+    bool _preserveWhitespace;
+};
+
+
 std::unique_ptr<Builder> makeFRAC()
 {
     class FRACBuilder final : public Builder
@@ -427,8 +508,8 @@ std::unique_ptr<Builder> makeGENFRAC()
         std::string take() override
         {
             std::string out;
-            out.append("<mfenced open='").append(_left.data).append("' close='").append(_right.data).append("'><mrow>")
-               .append("<mfrac linethickness='").append(_barThickness.data).append("'>")
+            out.append("<mfenced open='").append(_left.takeContent()).append("' close='").append(_right.takeContent()).append("'><mrow>")
+               .append("<mfrac linethickness='").append(_barThickness.takeContent()).append("'>")
                .append(_numerator.take())
                .append(_denominator.take())
                .append("</mfrac></mrow></mfenced>");
@@ -436,51 +517,12 @@ std::unique_ptr<Builder> makeGENFRAC()
         }
 
     private:
-        struct Arg final
-        {
-            void add(TokenSequence& sequence)
-            {
-                const auto& token = sequence.top();
-                if (token.content[0] != '{')
-                {
-                    data += token.content;
-                    sequence.next();
-                    return;
-                }
-
-                for(bool finalize = false; !finalize && !sequence.empty(); sequence.next())
-                {
-                    const auto& token = sequence.top();
-                    switch (token.type)
-                    {
-                        case START_GROUP:
-                            ++_groupIndex;
-                            break;
-
-                        case END_GROUP:
-                            --_groupIndex;
-                            if (_groupIndex == 0 && token.content[0] == '}') finalize = true;
-                            break;
-
-                        default:
-                            data += token.content;
-                            break;
-                    }
-                }
-            }
-
-        public:
-            std::string data;
-
-        private:
-            std::size_t _groupIndex = 0;
-        };
 
     private:
-        Arg _left;
-        Arg _right;
-        Arg _barThickness;
-        Arg _style;
+        TextArgBuilder _left;
+        TextArgBuilder _right;
+        TextArgBuilder _barThickness;
+        TextArgBuilder _style;
         ArgBuilder _numerator;
         ArgBuilder _denominator;
     };
@@ -991,6 +1033,11 @@ std::unique_ptr<Builder> makeSUBSTACK()
     return std::make_unique<SUBSTACKBuilder>();
 }
 
+std::unique_ptr<Builder> makeMBOX()
+{
+    return std::make_unique<TextArgBuilder>(true);
+}
+
 const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilderFactory()
 {
     static const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()> map =
@@ -1013,6 +1060,7 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {"sum", makeSUM},
         {"underset", makeUNDERSET},
         {"widebar", makeOVERLINE},
+        {"mbox", makeMBOX},
     };
     return map;
 }
