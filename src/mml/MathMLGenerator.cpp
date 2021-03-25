@@ -139,7 +139,7 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
         {"ne", "\xE2\x89\xA0"},
         {"neq", "\xE2\x89\xA0"},
         {"notin", "\xE2\x88\x89"},
-        {"nparallel", "\xE2\x88\xA5"},
+        {"nparallel", "\xE2\x88\xA6"},
         {"nsubseteq", "\xE2\x8A\x88"},
         {"oiiint", "\xE2\x88\xB0"},
         {"oiint", "\xE2\x88\xAF"},
@@ -1013,6 +1013,44 @@ std::unique_ptr<Builder> makeHSPACE()
     return std::make_unique<HSPACEBuilder>();
 }
 
+std::unique_ptr<Builder> makeQUAD()
+{
+    class QUADBuilder final : public Builder
+    {
+        void add(TokenSequence&) override
+        {
+        }
+
+        std::string take() override
+        {
+            return R"(<mspace width="1em"/>)";
+        }
+
+    private:
+        ArgBuilder _arg;
+    };
+    return std::make_unique<QUADBuilder>();
+}
+
+std::unique_ptr<Builder> makeQQUAD()
+{
+    class QQUADBuilder final : public Builder
+    {
+        void add(TokenSequence&) override
+        {
+        }
+
+        std::string take() override
+        {
+            return R"(<mspace width="2em"/>)";
+        }
+
+    private:
+        ArgBuilder _arg;
+    };
+    return std::make_unique<QQUADBuilder>();
+}
+
 std::unique_ptr<Builder> makeSUBSTACK()
 {
     class SUBSTACKBuilder final : public Builder
@@ -1085,6 +1123,8 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {"sum", makeSUM},
         {"underset", makeUNDERSET},
         {"widebar", makeOVERLINE},
+        {"quad", makeQUAD},
+        {"qquad", makeQQUAD},
     };
     return map;
 }
