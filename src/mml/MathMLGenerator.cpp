@@ -1013,42 +1013,66 @@ std::unique_ptr<Builder> makeHSPACE()
     return std::make_unique<HSPACEBuilder>();
 }
 
+class SingleNodeBuilder final : public Builder
+{
+public:
+    SingleNodeBuilder(std::string&& node)
+        : _node(std::move(node))
+    {
+    }
+
+    void add(TokenSequence&) override
+    {
+    }
+
+    std::string take() override
+    {
+        return std::move(_node);
+    }
+
+private:
+    std::string _node;
+};
+
+
 std::unique_ptr<Builder> makeQUAD()
 {
-    class QUADBuilder final : public Builder
-    {
-        void add(TokenSequence&) override
-        {
-        }
-
-        std::string take() override
-        {
-            return R"(<mspace width="1em"/>)";
-        }
-
-    private:
-        ArgBuilder _arg;
-    };
-    return std::make_unique<QUADBuilder>();
+    return std::make_unique<SingleNodeBuilder>(R"(<mspace width="1em"/>)");
 }
 
 std::unique_ptr<Builder> makeQQUAD()
 {
-    class QQUADBuilder final : public Builder
-    {
-        void add(TokenSequence&) override
-        {
-        }
+    return std::make_unique<SingleNodeBuilder>(R"(<mspace width="2em"/>)");
+}
 
-        std::string take() override
-        {
-            return R"(<mspace width="2em"/>)";
-        }
+std::unique_ptr<Builder> makeTHICKSPACE()
+{
+    return std::make_unique<SingleNodeBuilder>(R"(<mspace width="0.27778em"/>)");
+}
 
-    private:
-        ArgBuilder _arg;
-    };
-    return std::make_unique<QQUADBuilder>();
+std::unique_ptr<Builder> makeMEDSPACE()
+{
+    return std::make_unique<SingleNodeBuilder>(R"(<mspace width="0.22222em"/>)");
+}
+
+std::unique_ptr<Builder> makeTHINSPACE()
+{
+    return std::make_unique<SingleNodeBuilder>(R"(<mspace width="0.16667em"/>)");
+}
+
+std::unique_ptr<Builder> makeNEGSPACE()
+{
+    return std::make_unique<SingleNodeBuilder>(R"(<mspace width="-0.16667em"/>)");
+}
+
+std::unique_ptr<Builder> makeNEGMEDSPACE()
+{
+    return std::make_unique<SingleNodeBuilder>(R"(<mspace width="-0.22222em"/>)");
+}
+
+std::unique_ptr<Builder> makeNEGTHICKSPACE()
+{
+    return std::make_unique<SingleNodeBuilder>(R"(<mspace width="-0.27778em"/>)");
 }
 
 std::unique_ptr<Builder> makeSUBSTACK()
@@ -1103,6 +1127,12 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
 {
     static const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()> map =
     {
+        {" ", makeTHICKSPACE},
+        {"!", makeNEGSPACE},
+        {",", makeTHINSPACE},
+        {":", makeMEDSPACE},
+        {";", makeTHICKSPACE},
+        {">", makeMEDSPACE},
         {"binom", makeBINOM},
         {"cfrac", makeFRAC},
         {"closure", makeOVERLINE},
@@ -1113,18 +1143,25 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {"lim", makeLIM},
         {"mathrm", makeMATHRM},
         {"mbox", makeMBOX},
+        {"medspace", makeMEDSPACE},
+        {"negmedspace", makeNEGMEDSPACE},
+        {"negspace", makeNEGSPACE},
+        {"negthickspace", makeNEGTHICKSPACE},
+        {"negthinspace", makeNEGSPACE},
         {"overline", makeOVERLINE},
         {"overset", makeOVERSET},
         {"prod", makePROD},
         {"product", makePROD},
+        {"qquad", makeQQUAD},
+        {"quad", makeQUAD},
         {"sqrt", makeSQRT},
         {"stackrel", makeOVERSET},
         {"substack", makeSUBSTACK},
         {"sum", makeSUM},
+        {"thickspace", makeTHICKSPACE},
+        {"thinspace", makeTHINSPACE},
         {"underset", makeUNDERSET},
         {"widebar", makeOVERLINE},
-        {"quad", makeQUAD},
-        {"qquad", makeQQUAD},
     };
     return map;
 }

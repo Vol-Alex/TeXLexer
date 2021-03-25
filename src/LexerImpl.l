@@ -50,6 +50,12 @@ EOF     {return END;}
 "\\"        {BEGIN(INITIAL); return SIGN;}
 "begin"     {BEGIN(_BEGIN_ENV_);}
 "end"       {BEGIN(_END_ENV_);}
+" " |
+"," |
+":" |
+">" |
+";" |
+"!" |
 [a-zA-Z]+   {BEGIN(INITIAL); return COMMAND;}
 }
 
