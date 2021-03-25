@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <math xmlns="http://www.w3.org/1998/Math/MathML">
-<mstyle displaystyle="true">
-<mrow><munder><mrow><mover><mrow><mo>∫</mo></mrow><mrow><mn>1</mn></mrow></mover></mrow><mrow><mn>0</mn></mrow></munder></mrow></mstyle>
+<mrow><munder><mrow><mover><mrow><mo>∫</mo></mrow><mrow><mn>1</mn></mrow></mover></mrow><mrow><mn>0</mn></mrow></munder></mrow>
 </math>

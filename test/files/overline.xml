@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <math xmlns="http://www.w3.org/1998/Math/MathML">
-<mstyle displaystyle="true">
-<mrow><mover><mrow><msub><mrow><mi>A</mi></mrow><mrow><mi>x</mi></mrow></msub></mrow><mo>¯</mo></mover></mrow></mstyle>
+<mrow><mover><mrow><msub><mrow><mi>A</mi></mrow><mrow><mi>x</mi></mrow></msub></mrow><mo>¯</mo></mover></mrow>
 </math>

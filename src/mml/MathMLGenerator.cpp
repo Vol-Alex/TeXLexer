@@ -1038,6 +1038,29 @@ std::unique_ptr<Builder> makeMBOX()
     return std::make_unique<TextArgBuilder>(true);
 }
 
+std::unique_ptr<Builder> makeDISPLAYSTYLE()
+{
+    class DISPLAYSTYLEBuilder final : public Builder
+    {
+        void add(TokenSequence& sequence) override
+        {
+            _arg.add(sequence);
+        }
+
+        std::string take() override
+        {
+            std::string out(R"(<mstyle displaystyle="true">)");
+            out.append(_arg.take())
+               .append(R"(</mstyle>)");
+            return out;
+        }
+
+    private:
+        ArgBuilder _arg;
+    };
+    return std::make_unique<DISPLAYSTYLEBuilder>();
+}
+
 const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilderFactory()
 {
     static const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()> map =
@@ -1045,11 +1068,13 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {"binom", makeBINOM},
         {"cfrac", makeFRAC},
         {"closure", makeOVERLINE},
+        {"displaystyle", makeDISPLAYSTYLE},
         {"frac", makeFRAC},
         {"genfrac", makeGENFRAC},
         {"hspace", makeHSPACE},
         {"lim", makeLIM},
         {"mathrm", makeMATHRM},
+        {"mbox", makeMBOX},
         {"overline", makeOVERLINE},
         {"overset", makeOVERSET},
         {"prod", makePROD},
@@ -1060,7 +1085,6 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {"sum", makeSUM},
         {"underset", makeUNDERSET},
         {"widebar", makeOVERLINE},
-        {"mbox", makeMBOX},
     };
     return map;
 }
@@ -1089,15 +1113,13 @@ void MathMLGenerator::generateFromIN()
 void MathMLGenerator::generate(Lexer& lexer)
 {
     _out << R"(<?xml version="1.0" encoding="UTF-8"?>)" << std::endl
-         << R"(<math xmlns="http://www.w3.org/1998/Math/MathML">)" << std::endl
-         << R"(<mstyle displaystyle="true">)" << std::endl;
+         << R"(<math xmlns="http://www.w3.org/1998/Math/MathML">)" << std::endl;
 
     TokenSequence sequence{lexer};
     RowBuilder builder;
     while(!sequence.empty()) builder.add(sequence);
 
-    _out << builder.take()
-         << R"(</mstyle>)" << std::endl
+    _out << builder.take() << std::endl
          << R"(</math>)" << std::endl;
 }
 } // namespace TXL

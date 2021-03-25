@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <math xmlns="http://www.w3.org/1998/Math/MathML">
-<mstyle displaystyle="true">
-<mrow><msup><mrow><mfenced open='(' close=')'><mrow><mn>1</mn><mo>+</mo><mi>x</mi></mrow></mfenced></mrow><mrow><mi>n</mi></mrow></msup></mrow></mstyle>
+<mrow><msup><mrow><mfenced open='(' close=')'><mrow><mn>1</mn><mo>+</mo><mi>x</mi></mrow></mfenced></mrow><mrow><mi>n</mi></mrow></msup></mrow>
 </math>
