@@ -112,12 +112,14 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
     static const std::unordered_map<std::string, std::string> map = {
         {"Del", "\xE2\x88\x87"},
         {"approx", "\xE2\x89\x88"},
+        {"bullet", "\xE2\x80\xA2"},
         {"cap", "\xE2\x88\xA9"},
         {"cdot", "\xE2\x8B\x85"},
         {"cong", "\xE2\x89\x85"},
         {"conint", "\xE2\x88\xAE"},
         {"contourintegral", "\xE2\x88\xAE"},
         {"cup", "\xE2\x88\xAA"},
+        {"div", "\xC3\xB7"},
         {"doubleintegral", "\xE2\x88\xAC"},
         {"equiv", "\xE2\x89\xA1"},
         {"ge", "\xE2\x89\xA5"},
@@ -138,15 +140,21 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
         {"nabla", "\xE2\x88\x87"},
         {"ne", "\xE2\x89\xA0"},
         {"neq", "\xE2\x89\xA0"},
+        {"ngeq", "\xE2\x89\xB1"},
+        {"nleq","\xE2\x89\xB0"},
+        {"nless", "\xE2\x89\xAE"},
+        {"not", "\x2F"},
         {"notin", "\xE2\x88\x89"},
         {"nparallel", "\xE2\x88\xA6"},
         {"nsubseteq", "\xE2\x8A\x88"},
+        {"nsupseteq", "\xE2\x8A\x89"},
         {"oiiint", "\xE2\x88\xB0"},
         {"oiint", "\xE2\x88\xAF"},
         {"oint", "\xE2\x88\xAE"},
         {"oplus", "\xE2\x8A\x95"},
         {"otimes", "\xE2\x8A\x97"},
         {"parallel", "\xE2\x88\xA5"},
+        {"partial", "\xE2\x88\x82"},
         {"perp", "\xE2\x8A\xA5"},
         {"pm", "\xC2\xB1"},
         {"prime", "\xE2\x80\xB2"},
@@ -162,8 +170,8 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
         {"times", "\xC3\x97"},
         {"to", "\xE2\x86\x92"},
         {"triangle", "\xE2\x96\xB3"},
+        {"triangledown", "\xE2\x96\xBF"},
         {"tripleintegral", "\xE2\x88\xAD"},
-        {"div", "\xC3\xB7"},
     };
     return map;
 }
@@ -176,7 +184,7 @@ enum class SubSupType
     NoLimits
 };
 
-std::unique_ptr<Builder> makeEnvBuilder();
+std::unique_ptr<Builder> makeEnvBuilder(const std::string& name);
 std::unique_ptr<Builder> makeSubSup(std::string&& firstArg, SubSupType type);
 
 class RowBuilder final : public Builder
@@ -291,7 +299,7 @@ public:
             case BEGIN_ENV:
             {
                 _lastTokenPos = _out.size();
-                auto nestedBuilder = makeEnvBuilder();
+                auto nestedBuilder = makeEnvBuilder(token.content);
                 nestedBuilder->add(sequence.next());
                 _out.append(nestedBuilder->take());
                 return;
@@ -814,11 +822,16 @@ private:
     TableBuilder _tableBuilder;
 };
 
-std::unique_ptr<Builder> makeEnvBuilder()
+std::unique_ptr<Builder> makeEnvBuilder(const std::string& name)
 {
     class EnvBuilder final : public Builder
     {
     public:
+        EnvBuilder(const std::string& name)
+            : _name(name)
+        {
+        }
+
         void add(TokenSequence& sequence) override
         {
             _arg.add(sequence);
@@ -843,7 +856,35 @@ std::unique_ptr<Builder> makeEnvBuilder()
 
         std::string take() override
         {
-            return _tableBuilder.take();
+            auto out = _tableBuilder.take();
+
+            if (_name == "pmatrix")
+            {
+                out.insert(0, "<mfenced open='(' close=')'>");
+                out.append("</mfenced>");
+
+            }
+            else if (_name == "bmatrix")
+            {
+                out.insert(0, "<mfenced open='[' close=']'>");
+                out.append("</mfenced>");
+            }
+            else if (_name == "Bmatrix")
+            {
+                out.insert(0, "<mfenced open='{' close='}'>");
+                out.append("</mfenced>");
+            }
+            else if (_name == "vmatrix")
+            {
+                out.insert(0, "<mfenced open='|' close='|'>");
+                out.append("</mfenced>");
+            }
+            else if (_name == "Vmatrix")
+            {
+                out.insert(0, "<mfenced open='\xE2\x80\x96' close='\xE2\x80\x96'>");
+                out.append("</mfenced>");
+            }
+            return out;
         }
 
     private:
@@ -856,18 +897,19 @@ std::unique_ptr<Builder> makeEnvBuilder()
                     return;
                 }
 
+                std::size_t groupIndex = 0;
                 for(bool finalize = false; !finalize && !sequence.empty(); sequence.next())
                 {
                     const auto& token = sequence.top();
                     switch (token.type)
                     {
                         case START_GROUP:
-                            ++_groupIndex;
+                            ++groupIndex;
                             break;
 
                         case END_GROUP:
-                            --_groupIndex;
-                            if (_groupIndex == 0 && token.content[0] == '}') finalize = true;
+                            --groupIndex;
+                            if (groupIndex == 0 && token.content[0] == '}') finalize = true;
                             break;
 
                         default:
@@ -879,17 +921,15 @@ std::unique_ptr<Builder> makeEnvBuilder()
 
         public:
             std::string data;
-
-        private:
-            std::size_t _groupIndex = 0;
         };
 
     private:
+        std::string _name;
         Arg _arg;
         TableBuilder _tableBuilder;
     };
 
-    return std::make_unique<EnvBuilder>();
+    return std::make_unique<EnvBuilder>(name);
 }
 
 std::unique_ptr<Builder> makeSUM()
@@ -970,27 +1010,55 @@ std::unique_ptr<Builder> makeMATHRM()
     return std::make_unique<MATHRMBuilder>();
 }
 
+class AccentBuilder final : public Builder
+{
+public:
+    AccentBuilder(const char* accent)
+        : _accent(accent)
+    {}
+
+    void add(TokenSequence& sequence) override
+    {
+        _arg.add(sequence);
+    }
+
+    std::string take() override
+    {
+        std::string out(R"(<mover>)");
+        out.append(_arg.take())
+           .append(_accent)
+           .append("</mover>");
+        return out;
+    }
+
+private:
+    const char* _accent;
+    ArgBuilder _arg;
+};
+
+std::unique_ptr<Builder> makeDOT()
+{
+    return std::make_unique<AccentBuilder>("<mo>\x2E</mo>");
+}
+
+std::unique_ptr<Builder> makeTILDE()
+{
+    return std::make_unique<AccentBuilder>("<mo stretchy=\"false\">\x7E</mo>");
+}
+
+std::unique_ptr<Builder> makeWIDETILDE()
+{
+    return std::make_unique<AccentBuilder>("<mo>\x7E</mo>");
+}
+
 std::unique_ptr<Builder> makeOVERLINE()
 {
-    class OVERLINEBuilder final : public Builder
-    {
-        void add(TokenSequence& sequence) override
-        {
-            _arg.add(sequence);
-        }
+    return std::make_unique<AccentBuilder>("<mo>\xC2\xAF</mo>");
+}
 
-        std::string take() override
-        {
-            std::string out(R"(<mover>)");
-            out.append(_arg.take())
-               .append("<mo>\xC2\xAF</mo></mover>");
-            return out;
-        }
-
-    private:
-        ArgBuilder _arg;
-    };
-    return std::make_unique<OVERLINEBuilder>();
+std::unique_ptr<Builder> makeVEC()
+{
+    return std::make_unique<AccentBuilder>("<mo>\xE2\x86\x92</mo>");
 }
 
 std::unique_ptr<Builder> makeHSPACE()
@@ -1034,10 +1102,9 @@ private:
     std::string _node;
 };
 
-
 std::unique_ptr<Builder> makeQUAD()
 {
-    return std::make_unique<SingleNodeBuilder>(R"(<mspace width="1em"/>)");
+    return std::make_unique<SingleNodeBuilder>("<mi>\xE2\x80\x81</mi>");
 }
 
 std::unique_ptr<Builder> makeQQUAD()
@@ -1052,12 +1119,12 @@ std::unique_ptr<Builder> makeTHICKSPACE()
 
 std::unique_ptr<Builder> makeMEDSPACE()
 {
-    return std::make_unique<SingleNodeBuilder>(R"(<mspace width="0.22222em"/>)");
+    return std::make_unique<SingleNodeBuilder>("<mi>\xE2\x81\x9F</mi>");
 }
 
 std::unique_ptr<Builder> makeTHINSPACE()
 {
-    return std::make_unique<SingleNodeBuilder>(R"(<mspace width="0.16667em"/>)");
+    return std::make_unique<SingleNodeBuilder>("<mi>\xE2\x80\x89</mi>");
 }
 
 std::unique_ptr<Builder> makeNEGSPACE()
@@ -1123,6 +1190,29 @@ std::unique_ptr<Builder> makeDISPLAYSTYLE()
     return std::make_unique<DISPLAYSTYLEBuilder>();
 }
 
+std::unique_ptr<Builder> makeTEXTSTYLE()
+{
+    class TEXTSTYLEBuilder final : public Builder
+    {
+        void add(TokenSequence& sequence) override
+        {
+            _arg.add(sequence);
+        }
+
+        std::string take() override
+        {
+            std::string out(R"(<mstyle displaystyle="false">)");
+            out.append(_arg.take())
+               .append(R"(</mstyle>)");
+            return out;
+        }
+
+    private:
+        ArgBuilder _arg;
+    };
+    return std::make_unique<TEXTSTYLEBuilder>();
+}
+
 const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilderFactory()
 {
     static const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()> map =
@@ -1137,6 +1227,7 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {"cfrac", makeFRAC},
         {"closure", makeOVERLINE},
         {"displaystyle", makeDISPLAYSTYLE},
+        {"dot", makeDOT},
         {"frac", makeFRAC},
         {"genfrac", makeGENFRAC},
         {"hspace", makeHSPACE},
@@ -1158,10 +1249,15 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {"stackrel", makeOVERSET},
         {"substack", makeSUBSTACK},
         {"sum", makeSUM},
+        {"textstyle", makeTEXTSTYLE},
         {"thickspace", makeTHICKSPACE},
         {"thinspace", makeTHINSPACE},
+        {"tilde", makeTILDE},
         {"underset", makeUNDERSET},
+        {"vec", makeVEC},
         {"widebar", makeOVERLINE},
+        {"widetilde", makeWIDETILDE},
+        {"~", makeTILDE},
     };
     return map;
 }

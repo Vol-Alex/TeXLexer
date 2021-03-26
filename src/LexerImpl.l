@@ -56,6 +56,7 @@ EOF     {return END;}
 ">" |
 ";" |
 "!" |
+"~" |
 [a-zA-Z]+   {BEGIN(INITIAL); return COMMAND;}
 }
 
