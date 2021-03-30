@@ -99,10 +99,14 @@ const std::unordered_map<std::string, std::string>& getCharCmdMap()
 
         {"dots", "\xE2\x80\xA6"},
         {"ldots", "\xE2\x80\xA6"},
+        {"dotso", "\xE2\x80\xA6"},
+        {"dotsc", "\xE2\x80\xA6"},
         {"vdots", "\xE2\x8B\xAE"},
         {"cdots", "\xE2\x8B\xAF"},
+        {"dotsb", "\xE2\x8B\xAF"},
         {"ddots", "\xE2\x8B\xB1"},
         {"udots", "\xE2\x8B\xB0"},
+        {"hbar", "\xE2\x84\x8F"},
     };
     return map;
 }
@@ -111,6 +115,7 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
 {
     static const std::unordered_map<std::string, std::string> map = {
         {"Del", "\xE2\x88\x87"},
+        {"angle", "\xE2\x88\xA0"},
         {"approx", "\xE2\x89\x88"},
         {"bullet", "\xE2\x80\xA2"},
         {"cap", "\xE2\x88\xA9"},
@@ -137,6 +142,7 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
         {"leftarrow", "\xE2\x86\x90"},
         {"leq", "\xE2\x89\xA4"},
         {"lt", "&lt;"},
+        {"measuredangle", "\xE2\x88\xA1"},
         {"nabla", "\xE2\x88\x87"},
         {"ne", "\xE2\x89\xA0"},
         {"neq", "\xE2\x89\xA0"},
@@ -1213,6 +1219,29 @@ std::unique_ptr<Builder> makeTEXTSTYLE()
     return std::make_unique<TEXTSTYLEBuilder>();
 }
 
+std::unique_ptr<Builder> makePHANTOM()
+{
+    class PHANTOMBuilder final : public Builder
+    {
+        void add(TokenSequence& sequence) override
+        {
+            _arg.add(sequence);
+        }
+
+        std::string take() override
+        {
+            std::string out(R"(<mphantom>)");
+            out.append(_arg.take())
+               .append(R"(</mphantom>)");
+            return out;
+        }
+
+    private:
+        ArgBuilder _arg;
+    };
+    return std::make_unique<PHANTOMBuilder>();
+}
+
 const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilderFactory()
 {
     static const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()> map =
@@ -1226,6 +1255,7 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {"binom", makeBINOM},
         {"cfrac", makeFRAC},
         {"closure", makeOVERLINE},
+        {"dfrac", makeFRAC},
         {"displaystyle", makeDISPLAYSTYLE},
         {"dot", makeDOT},
         {"frac", makeFRAC},
@@ -1240,7 +1270,9 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {"negthickspace", makeNEGTHICKSPACE},
         {"negthinspace", makeNEGSPACE},
         {"overline", makeOVERLINE},
+        {"overrightarrow", makeVEC},
         {"overset", makeOVERSET},
+        {"phantom", makePHANTOM},
         {"prod", makePROD},
         {"product", makePROD},
         {"qquad", makeQQUAD},
@@ -1249,7 +1281,9 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {"stackrel", makeOVERSET},
         {"substack", makeSUBSTACK},
         {"sum", makeSUM},
+        {"tbinom", makeBINOM},
         {"textstyle", makeTEXTSTYLE},
+        {"tfrac", makeFRAC},
         {"thickspace", makeTHICKSPACE},
         {"thinspace", makeTHINSPACE},
         {"tilde", makeTILDE},
@@ -1257,6 +1291,7 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {"vec", makeVEC},
         {"widebar", makeOVERLINE},
         {"widetilde", makeWIDETILDE},
+        {"widevec", makeVEC},
         {"~", makeTILDE},
     };
     return map;
