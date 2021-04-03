@@ -115,14 +115,21 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
 {
     static const std::unordered_map<std::string, std::string> map = {
         {"Del", "\xE2\x88\x87"},
+        {"amalg", "\xE2\xA8\xBF"},
         {"angle", "\xE2\x88\xA0"},
         {"approx", "\xE2\x89\x88"},
+        {"bigcap", "\xE2\x8B\x82"},
+        {"bigcup", "\xE2\x8B\x83"},
+        {"bigvee", "\xE2\x8B\x81"},
+        {"bigwedge", "\xE2\x8B\x80"},
         {"bullet", "\xE2\x80\xA2"},
         {"cap", "\xE2\x88\xA9"},
         {"cdot", "\xE2\x8B\x85"},
         {"cong", "\xE2\x89\x85"},
         {"conint", "\xE2\x88\xAE"},
         {"contourintegral", "\xE2\x88\xAE"},
+        {"coprod", "\xE2\x88\x90"},
+        {"coproduct", "\xE2\x88\x90"},
         {"cup", "\xE2\x88\xAA"},
         {"div", "\xC3\xB7"},
         {"doubleintegral", "\xE2\x88\xAC"},
@@ -178,6 +185,8 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
         {"triangle", "\xE2\x96\xB3"},
         {"triangledown", "\xE2\x96\xBF"},
         {"tripleintegral", "\xE2\x88\xAD"},
+        {"vee", "\xE2\x88\xA8"},
+        {"wedge", "\xE2\x88\xA7"},
     };
     return map;
 }
@@ -1042,6 +1051,11 @@ private:
     ArgBuilder _arg;
 };
 
+std::unique_ptr<Builder> makeBAR()
+{
+    return std::make_unique<AccentBuilder>("<mo>\xC2\xAF</mo>");
+}
+
 std::unique_ptr<Builder> makeDOT()
 {
     return std::make_unique<AccentBuilder>("<mo>\x2E</mo>");
@@ -1065,6 +1079,38 @@ std::unique_ptr<Builder> makeOVERLINE()
 std::unique_ptr<Builder> makeVEC()
 {
     return std::make_unique<AccentBuilder>("<mo>\xE2\x86\x92</mo>");
+}
+
+std::unique_ptr<Builder> makeWIDEHAT()
+{
+    return std::make_unique<AccentBuilder>("<mo>\x5E</mo>");
+}
+
+std::unique_ptr<Builder> makeUNDERLINE()
+{
+    class UNDERLINEBuilder final : public Builder
+    {
+    public:
+
+        void add(TokenSequence& sequence) override
+        {
+            _arg.add(sequence);
+        }
+
+        std::string take() override
+        {
+            std::string out(R"(<munder>)");
+            out.append(_arg.take())
+               .append("<mo>\x5F</mo>")
+               .append("</munder>");
+            return out;
+        }
+
+    private:
+        ArgBuilder _arg;
+    };
+
+    return std::make_unique<UNDERLINEBuilder>();
 }
 
 std::unique_ptr<Builder> makeHSPACE()
@@ -1252,6 +1298,7 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {":", makeMEDSPACE},
         {";", makeTHICKSPACE},
         {">", makeMEDSPACE},
+        {"bar", makeBAR},
         {"binom", makeBINOM},
         {"cfrac", makeFRAC},
         {"closure", makeOVERLINE},
@@ -1287,9 +1334,11 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {"thickspace", makeTHICKSPACE},
         {"thinspace", makeTHINSPACE},
         {"tilde", makeTILDE},
+        {"underline", makeUNDERLINE},
         {"underset", makeUNDERSET},
         {"vec", makeVEC},
         {"widebar", makeOVERLINE},
+        {"widehat", makeWIDEHAT},
         {"widetilde", makeWIDETILDE},
         {"widevec", makeVEC},
         {"~", makeTILDE},
