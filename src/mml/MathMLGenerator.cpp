@@ -31,9 +31,41 @@ public:
         return *this;
     }
 
+    std::string popChar()
+    {
+        if (_t.type == TEXT)
+        {
+            auto& content = _t.content;
+            auto result = content.substr(0, getCharLength(content[0]));
+            content.erase(0, result.size());
+            if (content.empty())
+            {
+                next();
+            }
+            return result;
+        }
+        return std::string();
+    }
+
     bool empty() const
     {
         return _t.type == END;
+    }
+
+private:
+    uint8_t getCharLength(const char firstByte)
+    {
+        uint8_t lead = static_cast<uint8_t>(firstByte);
+        if (lead < 0x80)
+            return 1;
+        else if ((lead >> 5) == 0x6)
+            return 2;
+        else if ((lead >> 4) == 0xe)
+            return 3;
+        else if ((lead >> 3) == 0x1e)
+            return 4;
+        else
+            return 0;
     }
 
 private:
@@ -331,6 +363,19 @@ public:
         }
     }
 
+    void addCharOrToken(TokenSequence& sequence)
+    {
+        auto charSequence = sequence.popChar();
+        if (!charSequence.empty())
+        {
+            _out.append("<mi>")
+                .append(charSequence.data(), charSequence.size())
+                .append("</mi>");
+            return;
+        }
+        add(sequence);
+    }
+
     std::string take() override
     {
         _out.append("</").append(_nodeName).append(">");
@@ -392,7 +437,7 @@ public:
     {
         if (sequence.top().content[0] != '{')
         {
-            _rowBuilder.add(sequence);
+            _rowBuilder.addCharOrToken(sequence);
             return;
         }
 
