@@ -147,9 +147,12 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
 {
     static const std::unordered_map<std::string, std::string> map = {
         {"Del", "\xE2\x88\x87"},
+        {"Im", "\xE2\x84\x91"},
+        {"Re", "\xE2\x84\x9C"},
         {"amalg", "\xE2\xA8\xBF"},
         {"angle", "\xE2\x88\xA0"},
         {"approx", "\xE2\x89\x88"},
+        {"ast", "\xE2\x88\x97"},
         {"bigcap", "\xE2\x8B\x82"},
         {"bigcup", "\xE2\x8B\x83"},
         {"bigvee", "\xE2\x8B\x81"},
@@ -157,6 +160,7 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
         {"bullet", "\xE2\x80\xA2"},
         {"cap", "\xE2\x88\xA9"},
         {"cdot", "\xE2\x8B\x85"},
+        {"circ", "\xE2\x88\x98"},
         {"cong", "\xE2\x89\x85"},
         {"conint", "\xE2\x88\xAE"},
         {"contourintegral", "\xE2\x88\xAE"},
@@ -165,10 +169,14 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
         {"cup", "\xE2\x88\xAA"},
         {"div", "\xC3\xB7"},
         {"doubleintegral", "\xE2\x88\xAC"},
+        {"downarrow", "\xE2\x86\x93"},
         {"equiv", "\xE2\x89\xA1"},
+        {"exists", "\xE2\x88\x83"},
+        {"forall", "\xE2\x88\x80"},
         {"ge", "\xE2\x89\xA5"},
         {"geq", "\xE2\x89\xA5"},
         {"gt", "&gt;"},
+        {"hslash", "\xE2\x84\x8F"},
         {"iiiint", "\xE2\xA8\x8C"},
         {"iiint", "\xE2\x88\xAD"},
         {"iint", "\xE2\x88\xAC"},
@@ -184,7 +192,9 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
         {"measuredangle", "\xE2\x88\xA1"},
         {"nabla", "\xE2\x88\x87"},
         {"ne", "\xE2\x89\xA0"},
+        {"neg", "\xC2\xAC"},
         {"neq", "\xE2\x89\xA0"},
+        {"nexists", "\xE2\x88\x84"},
         {"ngeq", "\xE2\x89\xB1"},
         {"nleq","\xE2\x89\xB0"},
         {"nless", "\xE2\x89\xAE"},
@@ -196,6 +206,7 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
         {"oiiint", "\xE2\x88\xB0"},
         {"oiint", "\xE2\x88\xAF"},
         {"oint", "\xE2\x88\xAE"},
+        {"ominus", "\xE2\x8A\x96"},
         {"oplus", "\xE2\x8A\x95"},
         {"otimes", "\xE2\x8A\x97"},
         {"parallel", "\xE2\x88\xA5"},
@@ -206,6 +217,7 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
         {"propto", "\xE2\x88\x9D"},
         {"quadrupleintegral", "\xE2\xA8\x8C"},
         {"rightarrow", "\xE2\x86\x92"},
+        {"setminus", "\xE2\x88\x96"},
         {"sim", "\xE2\x88\xBC"},
         {"simeq", "\xE2\x89\x83"},
         {"subset", "\xE2\x8A\x82"},
@@ -217,8 +229,10 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
         {"triangle", "\xE2\x96\xB3"},
         {"triangledown", "\xE2\x96\xBF"},
         {"tripleintegral", "\xE2\x88\xAD"},
+        {"uparrow", "\xE2\x86\x91"},
         {"vee", "\xE2\x88\xA8"},
         {"wedge", "\xE2\x88\xA7"},
+        {"wp", "\xE2\x84\x98"},
     };
     return map;
 }
@@ -1106,6 +1120,11 @@ std::unique_ptr<Builder> makeDOT()
     return std::make_unique<AccentBuilder>("<mo>\x2E</mo>");
 }
 
+std::unique_ptr<Builder> makeDDOT()
+{
+    return std::make_unique<AccentBuilder>("<mo>\xC2\xA8</mo>");
+}
+
 std::unique_ptr<Builder> makeTILDE()
 {
     return std::make_unique<AccentBuilder>("<mo stretchy=\"false\">\x7E</mo>");
@@ -1350,6 +1369,7 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {"dfrac", makeFRAC},
         {"displaystyle", makeDISPLAYSTYLE},
         {"dot", makeDOT},
+        {"ddot", makeDDOT},
         {"frac", makeFRAC},
         {"genfrac", makeGENFRAC},
         {"hspace", makeHSPACE},

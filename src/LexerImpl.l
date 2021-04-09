@@ -59,6 +59,7 @@ EOF     {return END;}
 "!" |
 "~" |
 [a-zA-Z]+   {BEGIN(INITIAL); return COMMAND;}
+.           {BEGIN(_TEXT_); yyless(0);}
 }
 
 <_BEGIN_ENV_>
