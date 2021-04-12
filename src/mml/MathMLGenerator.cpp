@@ -177,14 +177,9 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
         {"geq", "\xE2\x89\xA5"},
         {"gt", "&gt;"},
         {"hslash", "\xE2\x84\x8F"},
-        {"iiiint", "\xE2\xA8\x8C"},
-        {"iiint", "\xE2\x88\xAD"},
-        {"iint", "\xE2\x88\xAC"},
         {"in", "\xE2\x88\x8A"},
         {"infinity", "\xE2\x88\x9E"},
         {"infty", "\xE2\x88\x9E"},
-        {"int","\xE2\x88\xAB"},
-        {"integral","\xE2\x88\xAB"},
         {"le", "\xE2\x89\xA4"},
         {"leftarrow", "\xE2\x86\x90"},
         {"leq", "\xE2\x89\xA4"},
@@ -203,11 +198,10 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
         {"nparallel", "\xE2\x88\xA6"},
         {"nsubseteq", "\xE2\x8A\x88"},
         {"nsupseteq", "\xE2\x8A\x89"},
-        {"oiiint", "\xE2\x88\xB0"},
-        {"oiint", "\xE2\x88\xAF"},
-        {"oint", "\xE2\x88\xAE"},
+        {"odot", "\xE2\x8A\x99"},
         {"ominus", "\xE2\x8A\x96"},
         {"oplus", "\xE2\x8A\x95"},
+        {"oslah", "\xE2\x8A\x98"},
         {"otimes", "\xE2\x8A\x97"},
         {"parallel", "\xE2\x88\xA5"},
         {"partial", "\xE2\x88\x82"},
@@ -302,8 +296,8 @@ public:
                 {
                     const auto& top = _fences.top();
                     _lastTokenPos = top.first;
-                    _out.insert(top.first, "<mfenced open='" + top.second +
-                                "' close='" + sequence.next().top().content + "'><mrow>");
+                    _out.insert(top.first, "<mfenced open='" + (top.second == "." ? "" : top.second) +
+                                "' close='" + (sequence.next().top().content == "." ? "" : sequence.top().content) + "'><mrow>");
                     _out.append("</mrow></mfenced>");
                     _fences.pop();
                     sequence.next();
@@ -1016,6 +1010,41 @@ std::unique_ptr<Builder> makePROD()
     return std::make_unique<SubSupBuilder>("<mo>\xE2\x88\x8F</mo>", SubSupType::Limits);
 }
 
+std::unique_ptr<Builder> makeINT()
+{
+    return std::make_unique<SubSupBuilder>("<mo>\xE2\x88\xAB</mo>", SubSupType::NoLimits);
+}
+
+std::unique_ptr<Builder> makeIINT()
+{
+    return std::make_unique<SubSupBuilder>("<mo>\xE2\x88\xAC</mo>", SubSupType::NoLimits);
+}
+
+std::unique_ptr<Builder> makeIIINT()
+{
+    return std::make_unique<SubSupBuilder>("<mo>\xE2\x88\xAD</mo>", SubSupType::NoLimits);
+}
+
+std::unique_ptr<Builder> makeIIIINT()
+{
+    return std::make_unique<SubSupBuilder>("<mo>\xE2\xA8\x8C</mo>", SubSupType::NoLimits);
+}
+
+std::unique_ptr<Builder> makeOINT()
+{
+    return std::make_unique<SubSupBuilder>("<mo>\xE2\x88\xAE</mo>", SubSupType::NoLimits);
+}
+
+std::unique_ptr<Builder> makeOIINT()
+{
+    return std::make_unique<SubSupBuilder>("<mo>\xE2\x88\xAF</mo>", SubSupType::NoLimits);
+}
+
+std::unique_ptr<Builder> makeOIIINT()
+{
+    return std::make_unique<SubSupBuilder>("<mo>\xE2\x88\xB0</mo>", SubSupType::NoLimits);
+}
+
 std::unique_ptr<Builder> makeLIM()
 {
     return std::make_unique<SubSupBuilder>("<mi mathvariant=\"normal\">lim</mi>", SubSupType::Limits);
@@ -1407,6 +1436,14 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {"widetilde", makeWIDETILDE},
         {"widevec", makeVEC},
         {"~", makeTILDE},
+        {"int", makeINT},
+        {"integral", makeINT},
+        {"iiiint", makeIIIINT},
+        {"iiint", makeIIINT},
+        {"iint", makeIINT},
+        {"oiiint", makeOIIINT},
+        {"oiint", makeOIINT},
+        {"oint", makeOINT},
     };
     return map;
 }
