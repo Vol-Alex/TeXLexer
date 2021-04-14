@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <math xmlns="http://www.w3.org/1998/Math/MathML">
-<mrow><munder><mrow><mo>∑</mo></mrow><mrow><mtable><mtr><mtd><mn>0</mn><mo>≤</mo><mi>i</mi><mo>≤</mo><mi>m</mi></mtd></mtr><mtr><mtd><mn>0</mn><mo>&lt;</mo><mi>j</mi><mo>&lt;</mo><mi>n</mi></mtd></mtr></mtable></mrow></munder><mi>P</mi><mo>(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>)</mo></mrow>
+<mrow><munder><mrow><mo>∑</mo></mrow><mrow><mtable><mtr><mtd><mn>0</mn><mo>≤</mo><mi>i</mi><mo>≤</mo><mi>m</mi></mtd></mtr><mtr><mtd><mn>0</mn><mo>&lt;</mo><mi>j</mi><mo>&lt;</mo><mi>n</mi></mtd></mtr></mtable></mrow></munder><mrow><mi>P</mi></mrow><mo>(</mo><mi>i</mi><mo>,</mo><mi>j</mi><mo>)</mo></mrow>
 </math>

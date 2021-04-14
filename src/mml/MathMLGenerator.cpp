@@ -390,6 +390,11 @@ public:
         return std::move(_out);
     }
 
+    bool empty() const
+    {
+        return _out.size() == (_nodeName.size() + 2);
+    }
+
 private:
     std::string _nodeName;
     std::string _out;
@@ -473,6 +478,11 @@ public:
     std::string take() override
     {
         return _rowBuilder.take();
+    }
+
+    bool empty() const
+    {
+        return _rowBuilder.empty();
     }
 
 private:
@@ -1000,14 +1010,44 @@ std::unique_ptr<Builder> makeEnvBuilder(const std::string& name)
     return std::make_unique<EnvBuilder>(name);
 }
 
+class SumLikeBuilder final : public Builder
+{
+public:
+    SumLikeBuilder(std::string&& cmdNode, const SubSupType type)
+        : _operator(std::move(cmdNode), type)
+    {
+    }
+
+    void add(TokenSequence& sequence) override
+    {
+        _operator.add(sequence);
+        _arg.add(sequence);
+    }
+
+    std::string take() override
+    {
+        auto result = _operator.take();
+
+        if (!_arg.empty())
+        {
+            result.append(_arg.take());
+        }
+        return result;
+    }
+
+private:
+    SubSupBuilder _operator;
+    ArgBuilder _arg;
+};
+
 std::unique_ptr<Builder> makeSUM()
 {
-    return std::make_unique<SubSupBuilder>("<mo>\xE2\x88\x91</mo>", SubSupType::Limits);
+    return std::make_unique<SumLikeBuilder>("<mo>\xE2\x88\x91</mo>", SubSupType::Limits);
 }
 
 std::unique_ptr<Builder> makePROD()
 {
-    return std::make_unique<SubSupBuilder>("<mo>\xE2\x88\x8F</mo>", SubSupType::Limits);
+    return std::make_unique<SumLikeBuilder>("<mo>\xE2\x88\x8F</mo>", SubSupType::Limits);
 }
 
 std::unique_ptr<Builder> makeINT()
@@ -1395,13 +1435,18 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {"binom", makeBINOM},
         {"cfrac", makeFRAC},
         {"closure", makeOVERLINE},
+        {"ddot", makeDDOT},
         {"dfrac", makeFRAC},
         {"displaystyle", makeDISPLAYSTYLE},
         {"dot", makeDOT},
-        {"ddot", makeDDOT},
         {"frac", makeFRAC},
         {"genfrac", makeGENFRAC},
         {"hspace", makeHSPACE},
+        {"iiiint", makeIIIINT},
+        {"iiint", makeIIINT},
+        {"iint", makeIINT},
+        {"int", makeINT},
+        {"integral", makeINT},
         {"lim", makeLIM},
         {"mathrm", makeMATHRM},
         {"mbox", makeMBOX},
@@ -1410,6 +1455,9 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {"negspace", makeNEGSPACE},
         {"negthickspace", makeNEGTHICKSPACE},
         {"negthinspace", makeNEGSPACE},
+        {"oiiint", makeOIIINT},
+        {"oiint", makeOIINT},
+        {"oint", makeOINT},
         {"overline", makeOVERLINE},
         {"overrightarrow", makeVEC},
         {"overset", makeOVERSET},
@@ -1436,14 +1484,6 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {"widetilde", makeWIDETILDE},
         {"widevec", makeVEC},
         {"~", makeTILDE},
-        {"int", makeINT},
-        {"integral", makeINT},
-        {"iiiint", makeIIIINT},
-        {"iiint", makeIIINT},
-        {"iint", makeIINT},
-        {"oiiint", makeOIIINT},
-        {"oiint", makeOIINT},
-        {"oint", makeOINT},
     };
     return map;
 }
