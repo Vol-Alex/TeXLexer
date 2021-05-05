@@ -15,6 +15,12 @@ const auto MAX_INDEX = std::numeric_limits<std::size_t>::max();
 class TokenSequence final
 {
 public:
+    enum class Style
+    {
+        Roman,
+    };
+
+public:
     TokenSequence(Lexer& lexer)
         : _lexer(lexer)
         , _t(lexer.next())
@@ -52,6 +58,25 @@ public:
         return _t.type == END;
     }
 
+    void pushStyle(const Style& style)
+    {
+        _styles.push(style);
+    }
+
+    const Style* getTopStyle()
+    {
+        if (_styles.empty())
+        {
+            return nullptr;
+        }
+        return &_styles.top();
+    }
+
+    void popStyle()
+    {
+        _styles.pop();
+    }
+
 private:
     uint8_t getCharLength(const char firstByte)
     {
@@ -71,6 +96,7 @@ private:
 private:
     Lexer& _lexer;
     Token _t;
+    std::stack<Style> _styles;
 };
 
 class Builder
@@ -284,7 +310,11 @@ public:
         const auto append = [&](const char* xmlNodeName, const std::string& content)
         {
             _lastTokenPos = _out.size();
-            _out.append("<").append(xmlNodeName).append(">")
+            _out.append("<").append(xmlNodeName);
+
+            appendStyle(_out, sequence.getTopStyle());
+
+            _out.append(">")
                 .append(content.data(), content.size())
                 .append("</").append(xmlNodeName).append(">");
             sequence.next();
@@ -403,7 +433,10 @@ public:
         auto charSequence = sequence.popChar();
         if (!charSequence.empty())
         {
-            _out.append("<mi>")
+            _out.append("<mi");
+            appendStyle(_out, sequence.getTopStyle());
+
+            _out.append(">")
                 .append(charSequence.data(), charSequence.size())
                 .append("</mi>");
             return;
@@ -420,6 +453,22 @@ public:
     bool empty() const
     {
         return _out.size() == (_nodeName.size() + 2);
+    }
+
+private:
+    void appendStyle(std::string& out, const TokenSequence::Style* const style)
+    {
+        if (!style)
+        {
+            return;
+        }
+
+        switch(*style)
+        {
+            case TokenSequence::Style::Roman:
+                out.append(" mathvariant=\"normal\"");
+                break;
+        }
     }
 
 private:
@@ -1163,15 +1212,14 @@ std::unique_ptr<Builder> makeMATHRM()
     {
         void add(TokenSequence& sequence) override
         {
+            sequence.pushStyle(TokenSequence::Style::Roman);
             _arg.add(sequence);
+            sequence.popStyle();
         }
 
         std::string take() override
         {
-            std::string out(R"(<mstyle mathvariant="normal">)");
-            out.append(_arg.take())
-               .append(R"(</mstyle>)");
-            return out;
+            return _arg.take();
         }
 
     private:
@@ -1507,6 +1555,7 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {"product", makePROD},
         {"qquad", makeQQUAD},
         {"quad", makeQUAD},
+        {"rm", makeMATHRM},
         {"sqrt", makeSQRT},
         {"stackrel", makeOVERSET},
         {"substack", makeSUBSTACK},

@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <math xmlns="http://www.w3.org/1998/Math/MathML">
-<mrow><munder><mrow><mstyle mathvariant="normal"><mrow><mi>B</mi></mrow></mstyle></mrow><mrow><mi>a</mi></mrow></munder></mrow>
+<mrow><munder><mrow><mrow><mi mathvariant="normal">B</mi></mrow></mrow><mrow><mi>a</mi></mrow></munder></mrow>
 </math>
