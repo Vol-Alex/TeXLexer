@@ -1183,8 +1183,9 @@ std::unique_ptr<Builder> makeMATHRM()
 class AccentBuilder final : public Builder
 {
 public:
-    AccentBuilder(const char* accent)
+    AccentBuilder(const char* accent, const char* nodeArgs = nullptr)
         : _accent(accent)
+        , _nodeArgs(nodeArgs)
     {}
 
     void add(TokenSequence& sequence) override
@@ -1194,8 +1195,14 @@ public:
 
     std::string take() override
     {
-        std::string out(R"(<mover>)");
-        out.append(_arg.take())
+        std::string out("<mover");
+        if (_nodeArgs)
+        {
+            out.append(" ");
+            out.append(_nodeArgs);
+        }
+        out.append(">")
+           .append(_arg.take())
            .append(_accent)
            .append("</mover>");
         return out;
@@ -1203,6 +1210,7 @@ public:
 
 private:
     const char* _accent;
+    const char* _nodeArgs;
     ArgBuilder _arg;
 };
 
@@ -1241,9 +1249,14 @@ std::unique_ptr<Builder> makeVEC()
     return std::make_unique<AccentBuilder>("<mo>\xE2\x86\x92</mo>");
 }
 
-std::unique_ptr<Builder> makeWIDEHAT()
+std::unique_ptr<Builder> makeHAT()
 {
     return std::make_unique<AccentBuilder>("<mo>\x5E</mo>");
+}
+
+std::unique_ptr<Builder> makeWIDEHAT()
+{
+    return std::make_unique<AccentBuilder>("<mo>\x5E</mo>", "accent=\"true\"");
 }
 
 std::unique_ptr<Builder> makeUNDERLINE()
@@ -1468,6 +1481,7 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {"dot", makeDOT},
         {"frac", makeFRAC},
         {"genfrac", makeGENFRAC},
+        {"hat", makeHAT},
         {"hspace", makeHSPACE},
         {"iiiint", makeIIIINT},
         {"iiint", makeIIINT},
