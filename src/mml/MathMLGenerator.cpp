@@ -5,6 +5,7 @@
 #include <memory>
 #include <unordered_map>
 #include <stack>
+#include <cctype>
 
 namespace TXL
 {
@@ -1509,6 +1510,53 @@ std::unique_ptr<Builder> makePHANTOM()
     return std::make_unique<PHANTOMBuilder>();
 }
 
+std::unique_ptr<Builder> makeTEXTCOLOR()
+{
+    class TEXTCOLORBuilder final : public Builder
+    {
+        void add(TokenSequence& sequence) override
+        {
+            _params.add(sequence);
+            _color.add(sequence);
+            _arg.add(sequence);
+        }
+
+        std::string take() override
+        {
+            std::string out("<mstyle");
+
+            auto colorStr = _color.takeContent();
+            if (!colorStr.empty() && colorStr[0] == '#')
+            {
+                std::transform(colorStr.begin(), colorStr.end(), colorStr.begin(),
+                               [](unsigned char c){ return std::toupper(c); });
+
+                if ("#000000" == colorStr) colorStr = "black";
+                else if ("#0000FF" == colorStr) colorStr = "blue";
+                else if ("#008000" == colorStr) colorStr = "green";
+                else if ("#00FFFF" == colorStr) colorStr = "cyan";
+                else if ("#FF0000" == colorStr) colorStr = "red";
+                else if ("#FF00FF" == colorStr) colorStr = "magenta";
+                else if ("#FFFF00" == colorStr) colorStr = "yellow";
+                else if ("#FFFFFF" == colorStr) colorStr = "white";
+
+                out.append(" color='").append(colorStr).append("'");
+            }
+
+            out.append(">")
+               .append(_arg.take())
+               .append("</mstyle>");
+            return out;
+        }
+
+    private:
+        OptArgBuilder _params;
+        TextArgBuilder _color;
+        ArgBuilder _arg;
+    };
+    return std::make_unique<TEXTCOLORBuilder>();
+}
+
 const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilderFactory()
 {
     static const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()> map =
@@ -1561,6 +1609,7 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {"substack", makeSUBSTACK},
         {"sum", makeSUM},
         {"tbinom", makeBINOM},
+        {"textcolor", makeTEXTCOLOR},
         {"textstyle", makeTEXTSTYLE},
         {"tfrac", makeFRAC},
         {"thickspace", makeTHICKSPACE},
