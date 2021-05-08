@@ -1,11 +1,12 @@
 #include "MathMLGenerator.h"
 #include "src/Lexer.h"
 
+#include <algorithm>
+#include <cctype>
 #include <limits>
 #include <memory>
-#include <unordered_map>
 #include <stack>
-#include <cctype>
+#include <unordered_map>
 
 namespace TXL
 {
@@ -1162,6 +1163,11 @@ std::unique_ptr<Builder> makeOIIINT()
     return std::make_unique<SubSupBuilder>("<mo>\xE2\x88\xB0</mo>", SubSupType::NoLimits);
 }
 
+std::unique_ptr<Builder> makeSMALLINT()
+{
+    return std::make_unique<SubSupBuilder>("<mo largeop=\"false\">\xE2\x88\xAB</mo>", SubSupType::NoLimits);
+}
+
 std::unique_ptr<Builder> makeLIM()
 {
     return std::make_unique<SubSupBuilder>("<mi mathvariant=\"normal\">lim</mi>", SubSupType::Limits);
@@ -1604,6 +1610,7 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {"qquad", makeQQUAD},
         {"quad", makeQUAD},
         {"rm", makeMATHRM},
+        {"smallint", makeSMALLINT},
         {"sqrt", makeSQRT},
         {"stackrel", makeOVERSET},
         {"substack", makeSUBSTACK},
