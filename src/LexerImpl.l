@@ -13,7 +13,10 @@
 %%
 
 "$"{1,2}
+"\\["
+"\\]"
 [ \t\n]
+
 "\\"    {BEGIN(_COMMAND_);}
 
 "{" |
@@ -44,8 +47,6 @@ EOF     {return END;}
 {
 "{" |
 "}" |
-"[" |
-"]" |
 "_" |
 "^"         {BEGIN(INITIAL); return TEXT;}
 "\\"        {BEGIN(INITIAL); return SIGN;}
