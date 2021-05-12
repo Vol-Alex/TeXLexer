@@ -14,11 +14,27 @@ namespace
 {
 const auto MAX_INDEX = std::numeric_limits<std::size_t>::max();
 
+uint8_t getCharLength(const char firstByte)
+{
+    uint8_t lead = static_cast<uint8_t>(firstByte);
+    if (lead < 0x80)
+        return 1;
+    else if ((lead >> 5) == 0x6)
+        return 2;
+    else if ((lead >> 4) == 0xe)
+        return 3;
+    else if ((lead >> 3) == 0x1e)
+        return 4;
+    else
+        return 0;
+}
+
 class TokenSequence final
 {
 public:
     enum class Style
     {
+        BlackboardBold,
         Roman,
     };
 
@@ -77,22 +93,6 @@ public:
     void popStyle()
     {
         _styles.pop();
-    }
-
-private:
-    uint8_t getCharLength(const char firstByte)
-    {
-        uint8_t lead = static_cast<uint8_t>(firstByte);
-        if (lead < 0x80)
-            return 1;
-        else if ((lead >> 5) == 0x6)
-            return 2;
-        else if ((lead >> 4) == 0xe)
-            return 3;
-        else if ((lead >> 3) == 0x1e)
-            return 4;
-        else
-            return 0;
     }
 
 private:
@@ -167,10 +167,6 @@ const std::unordered_map<std::string, std::string>& getCharCmdMap()
         {"ddots", "\xE2\x8B\xB1"},
         {"udots", "\xE2\x8B\xB0"},
         {"hbar", "\xE2\x84\x8F"},
-
-        {"mathbbN", "\xE2\x84\x95"},
-        {"mathbbQ", "\xE2\x84\x9A"},
-        {"mathbbZ", "\xE2\x84\xA4"},
     };
     return map;
 }
@@ -313,12 +309,9 @@ public:
         {
             _lastTokenPos = _out.size();
             _out.append("<").append(xmlNodeName);
+            appendContent(_out, content, sequence.getTopStyle());
+            _out.append("</").append(xmlNodeName).append(">");
 
-            appendStyle(_out, sequence.getTopStyle());
-
-            _out.append(">")
-                .append(content.data(), content.size())
-                .append("</").append(xmlNodeName).append(">");
             sequence.next();
         };
 
@@ -434,13 +427,11 @@ public:
     {
         auto charSequence = sequence.popChar();
         if (!charSequence.empty())
-        {
+        {            
             _out.append("<mi");
-            appendStyle(_out, sequence.getTopStyle());
+            appendContent(_out, charSequence, sequence.getTopStyle());
+            _out.append("</mi>");
 
-            _out.append(">")
-                .append(charSequence.data(), charSequence.size())
-                .append("</mi>");
             return;
         }
         add(sequence);
@@ -458,18 +449,53 @@ public:
     }
 
 private:
-    void appendStyle(std::string& out, const TokenSequence::Style* const style)
+    void appendContent(std::string& out, const std::string& content, const TokenSequence::Style* const style)
     {
         if (!style)
         {
+            out.append(">").append(content.data(), content.size());
             return;
         }
 
         switch(*style)
         {
             case TokenSequence::Style::Roman:
-                out.append(" mathvariant=\"normal\"");
+                out.append(" mathvariant=\"normal\">").append(content.data(), content.size());
                 break;
+
+            case TokenSequence::Style::BlackboardBold:
+            {
+                out.append(">");
+                for (auto it = content.begin(); it != content.end(); ++it)
+                {
+                    const auto chLen = getCharLength(*it);
+                    if (chLen == 1)
+                    {
+                        switch (*it)
+                        {
+                            case 'N':
+                                out.append("\xE2\x84\x95", 3);
+                                break;
+
+                            case 'Q':
+                                out.append("\xE2\x84\x9A", 3);
+                                break;
+
+                            case 'Z':
+                                out.append("\xE2\x84\xA4", 3);
+                                break;
+
+                            default:
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        out.append(it.base(), chLen);
+                    }
+                }
+                break;
+            }
         }
     }
 
@@ -1213,26 +1239,38 @@ std::unique_ptr<Builder> makeUNDERSET()
     return std::make_unique<ReverseTwoArgBuilder>("munder");
 }
 
+class MATHStyleBuilder final : public Builder
+{
+public:
+    MATHStyleBuilder(const TokenSequence::Style style)
+        : _style(style)
+    {}
+
+    void add(TokenSequence& sequence) override
+    {
+        sequence.pushStyle(_style);
+        _arg.add(sequence);
+        sequence.popStyle();
+    }
+
+    std::string take() override
+    {
+        return _arg.take();
+    }
+
+private:
+    ArgBuilder _arg;
+    TokenSequence::Style _style;
+};
+
+std::unique_ptr<Builder> makeMATHBB()
+{
+    return std::make_unique<MATHStyleBuilder>(TokenSequence::Style::BlackboardBold);
+}
+
 std::unique_ptr<Builder> makeMATHRM()
 {
-    class MATHRMBuilder final : public Builder
-    {
-        void add(TokenSequence& sequence) override
-        {
-            sequence.pushStyle(TokenSequence::Style::Roman);
-            _arg.add(sequence);
-            sequence.popStyle();
-        }
-
-        std::string take() override
-        {
-            return _arg.take();
-        }
-
-    private:
-        ArgBuilder _arg;
-    };
-    return std::make_unique<MATHRMBuilder>();
+    return std::make_unique<MATHStyleBuilder>(TokenSequence::Style::Roman);
 }
 
 class AccentBuilder final : public Builder
@@ -1591,6 +1629,7 @@ const std::unordered_map<std::string, std::unique_ptr<Builder>(*)()>& getBuilder
         {"int", makeINT},
         {"integral", makeINT},
         {"lim", makeLIM},
+        {"mathbb", makeMATHBB},
         {"mathrm", makeMATHRM},
         {"mbox", makeMBOX},
         {"medspace", makeMEDSPACE},
