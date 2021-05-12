@@ -193,6 +193,7 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
         {"cap", "\xE2\x88\xA9"},
         {"cdot", "\xE2\x8B\x85"},
         {"circ", "\xE2\x88\x98"},
+        {"complement", "\xE2\x88\x81"},
         {"cong", "\xE2\x89\x85"},
         {"conint", "\xE2\x88\xAE"},
         {"contourintegral", "\xE2\x88\xAE"},
@@ -492,7 +493,7 @@ private:
                     }
                     else
                     {
-                        out.append(it.base(), chLen);
+                        out.append(&*it, chLen);
                     }
                 }
                 break;
