@@ -224,6 +224,7 @@ const std::unordered_map<std::string, std::string>& getSymbolCmdMap()
         {"lt", "&lt;"},
         {"measuredangle", "\xE2\x88\xA1"},
         {"mid", "\xE2\x88\xA3"},
+        {"mp", "\xE2\x88\x93"},
         {"nabla", "\xE2\x88\x87"},
         {"ne", "\xE2\x89\xA0"},
         {"neg", "\xC2\xAC"},
